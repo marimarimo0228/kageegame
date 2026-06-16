@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0d1117">
+  <meta name="description" content="手のシルエットをポーズで採点するゲーム">
+  <title>影絵採点ゲーム</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- MediaPipe Hands（CDN） -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════
+       #screen-title  タイトル画面
+  ══════════════════════════════════════════════ -->
+  <section id="screen-title">
+
+    <!-- 背景: 蓄積アートキャンバス（薄く表示） -->
+    <canvas id="canvas-art" aria-hidden="true"></canvas>
+
+    <!-- 中央: タイトル + スタートボタン -->
+    <div class="title-center">
+      <h1 class="game-title">影絵採点ゲーム</h1>
+      <button id="btn-start" class="btn-primary"
+              onclick="window.GameModule.startGame()">
+        スタート
+      </button>
+    </div>
+
+    <!-- 左下: カメラプレビュー -->
+    <video id="video-preview" autoplay muted playsinline
+           aria-label="カメラプレビュー"></video>
+
+    <!-- 右下: ハイスコア上位3件 -->
+    <div id="ranking-display" aria-label="ハイスコア">
+      <p class="ranking-label">HIGH SCORE</p>
+      <ol id="ranking-list"></ol>
+    </div>
+
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       #screen-countdown  カウントダウン画面
+  ══════════════════════════════════════════════ -->
+  <section id="screen-countdown" style="display:none">
+    <span id="countdown-number" aria-live="assertive">3</span>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       #screen-play  プレイ画面
+  ══════════════════════════════════════════════ -->
+  <section id="screen-play" style="display:none">
+
+    <!-- 上部: タイマーバー + 問題番号 -->
+    <div class="play-header">
+      <div id="timer-bar-track">
+        <div id="timer-bar"></div>
+      </div>
+      <span id="question-number">1 / 5</span>
+    </div>
+
+    <!-- メインエリア: 左右分割 -->
+    <div class="play-main">
+
+      <!-- 左半分: お題シルエット画像 + 採点ポイントオーバーレイ -->
+      <div class="play-left">
+        <canvas id="canvas-question" aria-label="お題画像と採点ポイント"></canvas>
+      </div>
+
+      <!-- 右半分: カメラ映像 + 骨格オーバーレイ + リアルタイムスコア -->
+      <div class="play-right">
+        <canvas id="canvas-camera" aria-label="カメラ映像と手骨格"></canvas>
+        <div id="score-display" aria-live="polite">---</div>
+      </div>
+
+    </div>
+
+    <!-- 問題終了時: ベストスコアフラッシュ -->
+    <div id="flash-score" style="display:none" aria-live="assertive"></div>
+
+    <!-- 右上: NEW BEST! ラベル -->
+    <div id="new-best-label" style="display:none" aria-live="polite">NEW BEST!</div>
+
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       #screen-result  結果画面
+  ══════════════════════════════════════════════ -->
+  <section id="screen-result" style="display:none">
+    <div class="result-card">
+
+      <h2 class="result-heading">RESULT</h2>
+
+      <div class="result-total-wrap">
+        <span class="result-total-label">平均スコア</span>
+        <span id="result-total" class="result-total-value">0</span>
+        <span class="result-total-unit">点</span>
+      </div>
+
+      <ol id="result-scores" class="result-scores-list"></ol>
+
+      <p id="result-rank" class="result-rank">-- 位</p>
+
+      <div class="result-buttons">
+        <button id="btn-retry" class="btn-primary"
+                onclick="window.GameModule.startGame()">
+          もう一度
+        </button>
+        <button class="btn-secondary"
+                onclick="window.GameModule.showArtCanvas()">
+          影を見る
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       #screen-art  蓄積アート画面
+  ══════════════════════════════════════════════ -->
+  <section id="screen-art" style="display:none">
+    <canvas id="canvas-art-full" aria-label="蓄積影絵キャンバス"></canvas>
+    <p id="art-message">あなたの影が残りました</p>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       JS: 依存モジュール → ゲーム本体 の順に読み込む
+  ══════════════════════════════════════════════ -->
+  <script src="js/camera.js"></script>
+  <script src="js/classifier.js"></script>
+  <script src="js/poseExtractor.js"></script>
+  <script src="js/snapshot.js"></script>
+  <script src="js/artCanvas.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/ranking.js"></script>
+
+  <!-- ページ読み込み時の初期化 -->
+  <script>
+    (async function init() {
+      const video  = document.getElementById('video-preview');
+      const canvas = document.getElementById('canvas-camera');
+
+      // カメラ & MediaPipe 初期化
+      await window.CameraModule.initCamera(video, canvas);
+
+      // poses.json 読み込み & 参照骨格をバックグラウンドで抽出開始
+      await window.GameModule.initGame();
+
+      // タイトル背景に蓄積アートを描画
+      const artCanvas = document.getElementById('canvas-art');
+      window.ArtCanvasModule.drawAllSnapshots(
+        artCanvas,
+        window.SnapshotModule.loadAllSnapshots()
+      );
+
+      // ハイスコア上位3件を表示
+      const list = document.getElementById('ranking-list');
+      if (list) {
+        const top3 = window.RankingModule.getTopN(3);
+        list.innerHTML = top3.length
+          ? top3.map((e, i) =>
+              `<li>
+                <span class="rank-num">${i + 1}</span>
+                <span class="rank-score">${e.score}点</span>
+              </li>`
+            ).join('')
+          : '<li class="rank-empty">まだ記録がありません</li>';
+      }
+
+      // canvas のサイズをウィンドウに合わせる
+      function resizeCanvases() {
+        const art = document.getElementById('canvas-art');
+        if (art) { art.width = window.innerWidth; art.height = window.innerHeight; }
+
+        const artFull = document.getElementById('canvas-art-full');
+        if (artFull) { artFull.width = window.innerWidth; artFull.height = window.innerHeight; }
+
+        const cam = document.getElementById('canvas-camera');
+        if (cam) {
+          const p = cam.parentElement;
+          cam.width  = p ? p.clientWidth  : 320;
+          cam.height = p ? p.clientHeight : 240;
+        }
+      }
+      resizeCanvases();
+      window.addEventListener('resize', resizeCanvases);
+    })();
+  </script>
+
+  <!-- PWA: Service Worker 登録 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((err) => {
+          console.warn('[sw] 登録に失敗しました:', err);
+        });
+      });
+    }
+  </script>
+
+</body>
+</html>

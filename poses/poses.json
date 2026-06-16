@@ -1,0 +1,17 @@
+[
+  {
+    "name": "dog",  "label": "イヌ",  "image": "dog.jpg",  "answerImage": "dog-a.png",
+    "bboxConstraints": { "minWidthRatio": 0.45, "minHeightRatio": 0.35 },
+    "samples": []
+  },
+  {
+    "name": "bird", "label": "ハト",  "image": "bird.jpg", "answerImage": "bird-a.png",
+    "bboxConstraints": { "minWidthRatio": 0.55, "minHeightRatio": 0.45 },
+    "samples": []
+  },
+  {
+    "name": "crab", "label": "カニ",  "image": "crab.jpg", "answerImage": "crab-a.png",
+    "bboxConstraints": { "minWidthRatio": 0.65, "minHeightRatio": 0.40 },
+    "samples": []
+  }
+]
