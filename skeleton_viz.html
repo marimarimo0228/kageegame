@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>採点骨格点の可視化</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f1124;
+      color: #e8e8f0;
+      font-family: 'Segoe UI', Meiryo, sans-serif;
+      padding: 28px 20px;
+      min-height: 100vh;
+    }
+    h1 {
+      text-align: center;
+      color: #FFC300;
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #6a7aaa;
+      font-size: 12px;
+      margin-bottom: 28px;
+      font-family: 'Consolas', monospace;
+    }
+    .layout {
+      display: flex;
+      gap: 28px;
+      justify-content: center;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    canvas {
+      border-radius: 16px;
+      background: #16213e;
+      display: block;
+    }
+    .panel {
+      background: #16213e;
+      border-radius: 16px;
+      padding: 20px 22px;
+      width: 270px;
+      flex-shrink: 0;
+    }
+    .panel h2 {
+      font-size: 14px;
+      color: #FFC300;
+      border-bottom: 1px solid #1e2d50;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .sec { font-size: 10px; color: #556; text-transform: uppercase; letter-spacing: 1px; margin: 14px 0 5px; }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 5px 0;
+      font-size: 12.5px;
+    }
+    .dot {
+      border-radius: 50%;
+      border: 1.5px solid rgba(0,0,0,0.5);
+      flex-shrink: 0;
+    }
+    .s { width: 11px; height: 11px; }
+    .l { width: 15px; height: 15px; }
+    .m { width: 13px; height: 13px; }
+    .ghost {
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      border: 1.5px dashed #445;
+      flex-shrink: 0;
+    }
+    .formula {
+      background: #0f1124;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 11.5px;
+      color: #8898c0;
+      margin-top: 16px;
+      line-height: 1.9;
+    }
+    .formula code { color: #7ec8e3; }
+    .formula b { color: #FFC300; }
+    .note {
+      margin-top: 14px;
+      font-size: 11px;
+      color: #556;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <h1>採点に使用する骨格点（12点）</h1>
+  <p class="subtitle">KEY_INDICES = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 9]　— poseExtractor.js</p>
+
+  <div class="layout">
+    <canvas id="c" width="430" height="550"></canvas>
+
+    <div class="panel">
+      <h2>採点ポイントの凡例</h2>
+
+      <div class="sec">手首・手のひら</div>
+      <div class="row">
+        <div class="dot s" style="background:#777;border-color:#999;"></div>
+        <span>lm0 — 手首（正規化の原点・非表示）</span>
+      </div>
+      <div class="row">
+        <div class="dot m" style="background:#FFFFFF;border-color:#bbb;"></div>
+        <span>lm9 — 中指MCP（手のひら中心）</span>
+      </div>
+
+      <div class="sec">親指 <span style="color:#FF9F43;">●</span></div>
+      <div class="row">
+        <div class="dot s" style="background:#FF9F43;"></div>
+        <span>lm2 — 親指 MCP（中間）</span>
+      </div>
+      <div class="row">
+        <div class="dot l" style="background:#FF9F43;"></div>
+        <span>lm4 — 親指 TIP（先端）</span>
+      </div>
+
+      <div class="sec">人差し指 <span style="color:#FFC300;">●</span></div>
+      <div class="row">
+        <div class="dot s" style="background:#FFC300;"></div>
+        <span>lm6 — 人差指 PIP（中間）</span>
+      </div>
+      <div class="row">
+        <div class="dot l" style="background:#FFC300;"></div>
+        <span>lm8 — 人差指 TIP（先端）</span>
+      </div>
+
+      <div class="sec">中指 <span style="color:#5DCAA5;">●</span></div>
+      <div class="row">
+        <div class="dot s" style="background:#5DCAA5;"></div>
+        <span>lm10 — 中指 PIP（中間）</span>
+      </div>
+      <div class="row">
+        <div class="dot l" style="background:#5DCAA5;"></div>
+        <span>lm12 — 中指 TIP（先端）</span>
+      </div>
+
+      <div class="sec">薬指 <span style="color:#3498DB;">●</span></div>
+      <div class="row">
+        <div class="dot s" style="background:#3498DB;"></div>
+        <span>lm14 — 薬指 PIP（中間）</span>
+      </div>
+      <div class="row">
+        <div class="dot l" style="background:#3498DB;"></div>
+        <span>lm16 — 薬指 TIP（先端）</span>
+      </div>
+
+      <div class="sec">小指 <span style="color:#E879F9;">●</span></div>
+      <div class="row">
+        <div class="dot s" style="background:#E879F9;"></div>
+        <span>lm18 — 小指 PIP（中間）</span>
+      </div>
+      <div class="row">
+        <div class="dot l" style="background:#E879F9;"></div>
+        <span>lm20 — 小指 TIP（先端）</span>
+      </div>
+
+      <div class="sec">採点に使わない点</div>
+      <div class="row">
+        <div class="ghost"></div>
+        <span>lm1,3,5,7,11,13,15,17,19 — CMC/DIP/MCP</span>
+      </div>
+
+      <div class="formula">
+        <b>採点式（calcScore7）</b><br>
+        <code>simScore  = max(0, cos)²</code><br>
+        <code>distScore = max(0, 1 − avgDist/0.5)</code><br>
+        <code>score = (simScore×0.5 + distScore×0.5)×100</code><br>
+        <br>
+        小丸 = PIP/MCP（指の曲げ角度を評価）<br>
+        大丸 = TIP（指先位置を評価）
+      </div>
+
+      <p class="note">
+        ※ 白い実線 = 採点に使う接続<br>
+        ※ グレー破線 = 非採点の参考スケルトン（全21点）
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const C = document.getElementById('c');
+    const ctx = C.getContext('2d');
+
+    // MediaPipe 21点の(x, y)座標（手のひら正面、左手）
+    const lm = [
+      [215, 480],  // 0  Wrist
+      [157, 410],  // 1  Thumb CMC
+      [118, 358],  // 2  Thumb MCP  ★
+      [88,  305],  // 3  Thumb IP
+      [64,  253],  // 4  Thumb TIP  ★
+      [178, 322],  // 5  Index MCP
+      [172, 258],  // 6  Index PIP  ★
+      [170, 206],  // 7  Index DIP
+      [169, 156],  // 8  Index TIP  ★
+      [215, 310],  // 9  Middle MCP ★
+      [215, 243],  // 10 Middle PIP ★
+      [215, 188],  // 11 Middle DIP
+      [215, 132],  // 12 Middle TIP ★
+      [250, 322],  // 13 Ring MCP
+      [256, 258],  // 14 Ring PIP   ★
+      [258, 208],  // 15 Ring DIP
+      [258, 158],  // 16 Ring TIP   ★
+      [282, 338],  // 17 Pinky MCP
+      [290, 287],  // 18 Pinky PIP  ★
+      [293, 246],  // 19 Pinky DIP
+      [295, 206],  // 20 Pinky TIP  ★
+    ];
+
+    // KEY_INDICES の順に rawKeyPoints を構築
+    const KEY_INDICES = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 9];
+    const kp = KEY_INDICES.map(i => lm[i]);
+    // kp[0]=lm0, kp[1]=lm2, kp[2]=lm4, kp[3]=lm6, ... kp[11]=lm9
+
+    const KEY_STYLES = [
+      null,                          // kp[0]  lm0  Wrist（非表示）
+      { color: '#FF9F43', r: 6  },  // kp[1]  lm2  Thumb MCP
+      { color: '#FF9F43', r: 10 },  // kp[2]  lm4  Thumb TIP
+      { color: '#FFC300', r: 6  },  // kp[3]  lm6  Index PIP
+      { color: '#FFC300', r: 10 },  // kp[4]  lm8  Index TIP
+      { color: '#5DCAA5', r: 6  },  // kp[5]  lm10 Middle PIP
+      { color: '#5DCAA5', r: 10 },  // kp[6]  lm12 Middle TIP
+      { color: '#3498DB', r: 6  },  // kp[7]  lm14 Ring PIP
+      { color: '#3498DB', r: 10 },  // kp[8]  lm16 Ring TIP
+      { color: '#E879F9', r: 6  },  // kp[9]  lm18 Pinky PIP
+      { color: '#E879F9', r: 10 },  // kp[10] lm20 Pinky TIP
+      { color: '#FFFFFF', r: 8  },  // kp[11] lm9  Middle MCP
+    ];
+
+    // ゲームと同じ接続定義（kp インデックス）
+    const KEY_CONN = [
+      [0,11],[11,3],[11,5],[11,7],[11,9],
+      [3,4],[5,6],[7,8],[9,10],
+      [0,1],[1,2],
+    ];
+
+    // MediaPipe 全21点の接続
+    const ALL_CONN = [
+      [0,1],[1,2],[2,3],[3,4],
+      [0,5],[5,6],[6,7],[7,8],
+      [0,9],[9,10],[10,11],[11,12],
+      [0,13],[13,14],[14,15],[15,16],
+      [0,17],[17,18],[18,19],[19,20],
+      [5,9],[9,13],[13,17],
+    ];
+
+    const KEY_SET = new Set(KEY_INDICES);
+
+    function draw() {
+      ctx.clearRect(0, 0, C.width, C.height);
+
+      // ─── 1. 全21点の背景スケルトン（グレー破線）─────────────
+      ctx.save();
+      ctx.setLineDash([4, 5]);
+      ctx.strokeStyle = 'rgba(100, 120, 180, 0.28)';
+      ctx.lineWidth = 1.5;
+      for (const [a, b] of ALL_CONN) {
+        ctx.beginPath();
+        ctx.moveTo(lm[a][0], lm[a][1]);
+        ctx.lineTo(lm[b][0], lm[b][1]);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 非採点ポイント（小さいグレー丸）
+      for (let i = 0; i < 21; i++) {
+        if (KEY_SET.has(i)) continue;
+        ctx.beginPath();
+        ctx.arc(lm[i][0], lm[i][1], 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(100, 120, 180, 0.22)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(100,120,180,0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // ─── 2. 採点スケルトンの接続線（白半透明）─────────────────
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+      for (const [a, b] of KEY_CONN) {
+        ctx.beginPath();
+        ctx.moveTo(kp[a][0], kp[a][1]);
+        ctx.lineTo(kp[b][0], kp[b][1]);
+        ctx.stroke();
+      }
+
+      // ─── 3. 手首の位置（円だけ表示・ラベルあり）──────────────
+      const wrist = lm[0];
+      ctx.beginPath();
+      ctx.arc(wrist[0], wrist[1], 7, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(180,180,210,0.55)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // ─── 4. 採点ポイントのドット─────────────────────────────
+      kp.forEach((pt, i) => {
+        const s = KEY_STYLES[i];
+        if (!s) return;
+        ctx.beginPath();
+        ctx.arc(pt[0], pt[1], s.r, 0, Math.PI * 2);
+        ctx.fillStyle = s.color;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+
+      // ─── 5. ラベル─────────────────────────────────────────
+      ctx.font = 'bold 10px Consolas, monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+
+      const labels = [
+        // [kp_i, text, ox, oy]
+        [1,  'lm2 親指MCP',   -88,  0],
+        [2,  'lm4 親指先端',  -86,  0],
+        [3,  'lm6 人差指PIP', -87,  0],
+        [4,  'lm8 人差指先端',-90,  0],
+        [5,  'lm10 中指PIP',   12, -16],
+        [6,  'lm12 中指先端',  12, -16],
+        [7,  'lm14 薬指PIP',   14,  0],
+        [8,  'lm16 薬指先端',  14,  0],
+        [9,  'lm18 小指PIP',   14,  0],
+        [10, 'lm20 小指先端',  14,  0],
+        [11, 'lm9 中指MCP',    14,  0],
+      ];
+
+      labels.forEach(([i, text, ox, oy]) => {
+        const pt  = kp[i];
+        const s   = KEY_STYLES[i];
+        const col = s ? s.color : '#aaa';
+        const x   = pt[0] + ox;
+        const y   = pt[1] + oy;
+
+        // テキスト背景
+        const w = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(15,17,36,0.72)';
+        ctx.fillRect(x - 2, y - 7, w + 4, 14);
+
+        ctx.fillStyle = col;
+        ctx.fillText(text, x, y);
+      });
+
+      // 手首ラベル
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(180,180,210,0.65)';
+      ctx.font = '10px Consolas, monospace';
+      const w2 = ctx.measureText('lm0 手首（原点）').width;
+      ctx.fillStyle = 'rgba(15,17,36,0.72)';
+      ctx.fillRect(wrist[0] - w2/2 - 2, wrist[1] + 11, w2 + 4, 13);
+      ctx.fillStyle = 'rgba(180,180,210,0.75)';
+      ctx.fillText('lm0 手首（原点）', wrist[0], wrist[1] + 18);
+
+      // ─── 6. タイトル─────────────────────────────────────────
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 12px Segoe UI, Meiryo, sans-serif';
+      ctx.fillStyle = 'rgba(100,130,200,0.55)';
+      ctx.fillText('● = 採点ポイント　大●= 先端  小● = 中間関節', 12, 24);
+    }
+
+    draw();
+  </script>
+</body>
+</html>

@@ -279,17 +279,7 @@ section[id^="screen-"] {
   transform: scaleX(-1);
 }
 
-#canvas-overlay {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  transform: scaleX(-1); /* camera canvas と同じミラーを適用 */
-  z-index: 5;
-}
-
-/* リアルタイムスコア（カメラ映像の下部中央に浮上） */
+/* リアルタイムスコア（中央下部に浮上） */
 #score-display {
   position: absolute;
   bottom: 1.4rem;
@@ -298,62 +288,12 @@ section[id^="screen-"] {
   font-size: clamp(2.2rem, 7vw, 5rem);
   font-weight: 900;
   color: var(--text);
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7);
   pointer-events: none;
   letter-spacing: 0.04em;
   transition: color 0.15s;
   white-space: nowrap;
   z-index: 10;
-}
-
-/* 確率バー */
-#prob-bars {
-  position: absolute;
-  bottom: 0.8rem;
-  left: 0.8rem;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 0.28rem;
-  pointer-events: none;
-}
-
-.prob-row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.prob-label {
-  font-size: 0.62rem;
-  color: var(--text-dim);
-  width: 2.4em;
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.prob-track {
-  width: 72px;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.10);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.prob-fill {
-  height: 100%;
-  width: 0%;
-  background: var(--accent-green);
-  border-radius: 3px;
-  transition: width 0.12s ease;
-}
-
-.prob-val {
-  font-size: 0.58rem;
-  color: var(--text-dim);
-  width: 2.6em;
-  text-align: left;
-  flex-shrink: 0;
 }
 
 /* 問題終了フラッシュ */
@@ -477,6 +417,251 @@ section[id^="screen-"] {
 
 
 /* ══════════════════════════════════════════════════════
+   タイトル — エディタ起動ボタン
+══════════════════════════════════════════════════════ */
+
+.btn-editor-open {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 8px 28px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: border-color 0.18s, color 0.18s, transform 0.1s;
+  margin-top: -1rem; /* スタートボタンとの間隔を詰める */
+}
+.btn-editor-open:hover  { border-color: var(--accent-green); color: var(--accent-green); }
+.btn-editor-open:active { transform: scale(0.97); }
+
+
+/* ══════════════════════════════════════════════════════
+   骨格エディタ画面  #screen-editor
+══════════════════════════════════════════════════════ */
+
+#screen-editor {
+  flex-direction: column;
+  align-items:    stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* ヘッダー */
+.editor-header {
+  flex: 0 0 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.editor-back-btn {
+  padding: 6px 18px;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.editor-title {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  text-align: center;
+  letter-spacing: 0.08em;
+}
+
+.editor-header-right {
+  width: 90px;  /* 戻るボタンと同幅にして中央寄せを保つ */
+  display: flex;
+  justify-content: flex-end;
+}
+
+.editor-saved-badge {
+  font-size: 0.72rem;
+  color: var(--accent-green);
+  background: rgba(93, 202, 165, 0.12);
+  border: 1px solid rgba(93, 202, 165, 0.3);
+  border-radius: 12px;
+  padding: 3px 10px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ポーズ選択タブ */
+.editor-tabs {
+  flex: 0 0 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-tab {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 5px 22px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.editor-tab.active {
+  background: var(--accent-green);
+  color: #0d1117;
+  border-color: var(--accent-green);
+  font-weight: 700;
+}
+
+.editor-tab.saved::after {
+  content: ' ✓';
+  font-size: 0.72em;
+  opacity: 0.75;
+}
+
+/* ポーズ名ラベル + 手の本数選択 */
+.editor-pose-label {
+  flex: 0 0 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+}
+
+.editor-hand-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.editor-hand-count-label {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+}
+
+.editor-hand-count-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2px 12px;
+  font-size: 0.76rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.editor-hand-count-btn.active {
+  background: var(--accent-yellow);
+  color: #0d1117;
+  border-color: var(--accent-yellow);
+  font-weight: 700;
+}
+
+/* 手1 / 手2 タブ */
+.editor-hand-tabs {
+  flex: 0 0 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(74, 158, 255, 0.04);
+}
+
+.editor-hand-tab {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 4px 24px;
+  font-size: 0.84rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.editor-hand-tab[data-hand="0"].active {
+  background: var(--accent-green);
+  color: #0d1117;
+  border-color: var(--accent-green);
+  font-weight: 700;
+}
+
+.editor-hand-tab[data-hand="1"].active {
+  background: #4A9EFF;
+  color: #0d1117;
+  border-color: #4A9EFF;
+  font-weight: 700;
+}
+
+/* キャンバス領域 */
+.editor-canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  overflow: hidden;
+}
+
+#editor-canvas {
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+/* 操作ヒント */
+.editor-hint {
+  flex: 0 0 24px;
+  text-align: center;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  padding: 0 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* アクションボタン行 */
+.editor-actions {
+  flex: 0 0 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* 保存成功フラッシュ */
+.editor-btn-flash {
+  background: rgba(93, 202, 165, 0.2) !important;
+  color: var(--accent-green) !important;
+  border-color: var(--accent-green) !important;
+}
+
+
+/* ══════════════════════════════════════════════════════
    蓄積アート画面  #screen-art
 ══════════════════════════════════════════════════════ */
 
@@ -510,102 +695,4 @@ section[id^="screen-"] {
 @keyframes fade-up {
   from { opacity: 0; transform: translateX(-50%) translateY(12px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
-}
-
-
-/* ══════════════════════════════════════════════════════
-   チュートリアルオーバーレイ  #tutorial-overlay
-══════════════════════════════════════════════════════ */
-
-#tutorial-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: rgba(13, 17, 23, 0.88);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 2rem 1.5rem;
-  gap: 1.5rem;
-  animation: tut-fade-in 0.25s ease-out;
-}
-
-@keyframes tut-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* ── キャラクタースロット ────────────────────────────
-   ▼ キャラクター未設定時は非表示（display:none）
-   ▼ TutorialCharacter.imageUrl をセットすると flex に切り替わり表示される */
-.tut-char-slot {
-  display: none;
-  flex-shrink: 0;
-  align-items: flex-end;
-  justify-content: center;
-  width: 120px;
-  max-height: 220px;
-}
-
-.tut-char-img {
-  max-width: 100%;
-  max-height: 220px;
-  object-fit: contain;
-}
-
-/* ── 吹き出し ────────────────────────────────────── */
-.tut-speech-bubble {
-  background: rgba(13, 17, 23, 0.96);
-  border: 1.5px solid rgba(93, 202, 165, 0.4);
-  border-radius: 16px;
-  padding: 1.8rem 2.2rem;
-  max-width: 540px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.tut-title {
-  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
-  font-weight: 800;
-  color: var(--accent-green);
-  letter-spacing: 0.06em;
-}
-
-.tut-message {
-  font-size: clamp(0.85rem, 2.2vw, 1rem);
-  color: var(--text);
-  line-height: 1.85;
-  white-space: pre-line;
-}
-
-.tut-next-btn {
-  align-self: flex-end;
-  margin-top: 0.4rem;
-}
-
-/* ── インゲームヒント ────────────────────────────── */
-#tutorial-play-hint {
-  position: fixed;
-  bottom: 5.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
-  background: rgba(13, 17, 23, 0.88);
-  border: 1px solid rgba(93, 202, 165, 0.45);
-  border-radius: 8px;
-  padding: 0.6rem 1.5rem;
-  font-size: clamp(0.82rem, 2.5vw, 1rem);
-  color: var(--text);
-  pointer-events: none;
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.35s ease;
-  letter-spacing: 0.05em;
-  text-align: center;
-}
-
-#tutorial-play-hint.visible {
-  opacity: 1;
 }

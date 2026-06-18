@@ -10,15 +10,16 @@ const ART_HOLD_DURATION = 3_000;  // ms
 
 // ゲーム状態
 let allPoses           = [];   // poses.json 全体
-let allTemplates       = [];   // { name, label, img } の配列（プリロード済み画像）
-let referenceVecs      = {};   // { pose名: { vec, rawKeyPoints } | null }（骨格オーバーレイ用）
+let referenceVecs      = {};   // { pose名: { vec, rawKeyPoints } | null } — 採点に使うアクティブな参照
+let mediapipeVecs      = {};   // MediaPipe 抽出結果のみ保持（手動上書き不可）
+let mirroredRefVecs    = {};   // { pose名: number[] | null } — 左右反転採点ベクトル
 let _extractionPromise = null; // 抽出の重複実行を防ぐシングルトンPromise
 let questionOrder      = [];   // 今回の問題順（allPoses のインデックス列）
 let scores             = [];   // 各問題のベストスコア
 let sessionSnapshots   = [];   // 今回のセッションで保存した snapshot
 let currentDetectionCb = null;
 
-let _beepCtx = null;  // countdown / timer ビープ用（effects.js の audioCtx と名前衝突を避けるため改名）
+let audioCtx = null;
 
 // ─── お題キャンバス描画 ───────────────────────────────────────
 
@@ -109,18 +110,18 @@ function showScreen(id) {
 
 function playBeep(freq = 880, duration = 0.12) {
   try {
-    if (!_beepCtx) {
-      _beepCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    const osc  = _beepCtx.createOscillator();
-    const gain = _beepCtx.createGain();
+    const osc  = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
     osc.connect(gain);
-    gain.connect(_beepCtx.destination);
+    gain.connect(audioCtx.destination);
     osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.25, _beepCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, _beepCtx.currentTime + duration);
-    osc.start(_beepCtx.currentTime);
-    osc.stop(_beepCtx.currentTime + duration);
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + duration);
   } catch (_) {}
 }
 
@@ -131,6 +132,14 @@ function sampleIndices(total, count) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr.slice(0, count);
+}
+
+// ─── localStorage 手動保存の読み込み ──────────────────────
+
+function loadManualRefsFromStorage() {
+  try {
+    return JSON.parse(localStorage.getItem(window.KAGEE_MANUAL_REFS_KEY) || '{}');
+  } catch { return {}; }
 }
 
 // ─── poses.json 読み込み ──────────────────────────────────────
@@ -145,28 +154,50 @@ async function loadPoses() {
   }
 }
 
-// ─── テンプレート画像のプリロード ─────────────────────────────
+// ─── お題画像から参照骨格を抽出（シングルトン・バックグラウンド対応）─
 
-async function loadTemplateImages() {
-  allTemplates = await Promise.all(
-    allPoses.map((pose) => new Promise((resolve) => {
-      const img = new Image();
-      img.onload  = () => resolve({ name: pose.name, label: pose.label ?? pose.name, img });
-      img.onerror = () => resolve({ name: pose.name, label: pose.label ?? pose.name, img: null });
-      img.src = `assets/silhouettes/${pose.answerImage ?? pose.image}`;
-    }))
-  );
+// x成分（偶数インデックス）を反転して左右ミラーベクトルを生成する
+function computeMirrorVec(vec) {
+  return vec.map((v, i) => i % 2 === 0 ? -v : v);
 }
 
-// ─── お題画像から参照骨格を抽出（骨格オーバーレイ用・バックグラウンド）─
-
 async function extractAllReferenceVecs() {
-  const { extractFromImage } = window.PoseExtractorModule;
+  const { extractFromImage, computeVecFromKeyPoints } = window.PoseExtractorModule;
+  const manualRefs = loadManualRefsFromStorage();
+
   for (const pose of allPoses) {
     if (pose.name in referenceVecs) continue;
-    referenceVecs[pose.name] = await extractFromImage(
-      `assets/silhouettes/${pose.image}`
-    );
+
+    // 手動保存があれば優先して使用（MediaPipe をスキップ）
+    if (manualRefs[pose.name]) {
+      referenceVecs[pose.name] = manualRefs[pose.name];
+    } else {
+      // MediaPipe で抽出し、両方のキャッシュに保存
+      const result = await extractFromImage(`assets/silhouettes/${pose.image}`);
+      mediapipeVecs[pose.name] = result;
+
+      if (result) {
+        referenceVecs[pose.name] = { handCount: 1, ...result };
+      } else if (pose.keyPoints && pose.keyPoints.length === 12) {
+        // MediaPipe 検出失敗時は poses.json の定義済み座標をフォールバックとして使用
+        const vec = computeVecFromKeyPoints(pose.keyPoints);
+        referenceVecs[pose.name] = { handCount: 1, vec, rawKeyPoints: pose.keyPoints };
+        console.warn(`[game] ${pose.name}: MediaPipe 検出失敗 → poses.json の keyPoints を使用`);
+      } else {
+        referenceVecs[pose.name] = null;
+      }
+    }
+
+    // 正解ベクトルが確定したら左右反転バージョンも生成
+    const refVecData = referenceVecs[pose.name];
+    if (refVecData?.vec) {
+      mirroredRefVecs[pose.name] = {
+        vec:  computeMirrorVec(refVecData.vec),
+        vec2: refVecData.vec2 ? computeMirrorVec(refVecData.vec2) : null,
+      };
+    } else {
+      mirroredRefVecs[pose.name] = null;
+    }
   }
 }
 
@@ -183,15 +214,7 @@ function ensureReferenceVecs() {
  */
 async function initGame() {
   await loadPoses();
-  // モデル読み込みはバックグラウンドで開始（完了を待たずページ初期化を続行）
-  if (window.ClassifierModule) {
-    window.ClassifierModule.loadModel().catch(() => {});
-  }
-  const _overlayCanvas = document.getElementById('canvas-overlay');
-  if (_overlayCanvas && window.EffectsModule) {
-    window.EffectsModule.initEffects(_overlayCanvas);
-  }
-  ensureReferenceVecs(); // await しない（バックグラウンドで先行開始・骨格オーバーレイ用）
+  ensureReferenceVecs(); // await しない（バックグラウンドで先行開始）
 }
 
 // ─── カウントダウン ───────────────────────────────────────────
@@ -226,71 +249,40 @@ async function flashBestScore(score) {
   el.style.display = 'none';
 }
 
-// ─── 確率バー更新 ─────────────────────────────────────────────
-
-function updateProbabilityBars(preds) {
-  for (const { className, probability } of preds) {
-    const pct  = Math.round(probability * 100);
-    const fill = document.getElementById(`prob-${className}`);
-    const val  = document.getElementById(`prob-val-${className}`);
-    if (fill) fill.style.width = `${pct}%`;
-    if (val)  val.textContent  = `${pct}%`;
-  }
-}
-
 // ─── 1問の進行 ────────────────────────────────────────────────
 
-async function runQuestion(qIdx, isTutorial = false) {
+async function runQuestion(qIdx) {
   showScreen('screen-play');
 
-  const poseData = allPoses[questionOrder[qIdx]];
-  const refData  = poseData ? (referenceVecs[poseData.name] ?? null) : null;
+  const poseData  = allPoses[questionOrder[qIdx]];
+  const refData   = poseData ? (referenceVecs[poseData.name]  ?? null) : null;
+  const refVec    = refData?.vec  ?? null;
+  const refVec2   = refData?.vec2 ?? null;
+  const handCount = refData?.handCount ?? 1;
+  const mirData   = poseData ? (mirroredRefVecs[poseData.name] ?? null) : null;
+  const mirVec    = mirData?.vec  ?? null;
+  const mirVec2   = mirData?.vec2 ?? null;
 
-  let bestScore         = 0;
-  let bestLandmarks     = null;
-  let lastLandmarks     = null;
-  let lastTMScore       = 0;
-  let questionActive    = true;
-  let scoringInProgress = false;
-  let newBestTimer      = null;
-  let newBestActive     = false;
+  let bestScore     = 0;
+  let bestLandmarks = null;
+  let newBestTimer  = null;
+  let newBestActive = false;
 
   const qNumEl    = document.getElementById('question-number');
   const qCanvas   = document.getElementById('canvas-question');
-  if (qNumEl) qNumEl.textContent = isTutorial ? 'チュートリアル' : `${qIdx + 1} / ${QUESTION_COUNT}`;
+  if (qNumEl) qNumEl.textContent = `${qIdx + 1} / ${QUESTION_COUNT}`;
   if (qCanvas && poseData) {
     drawQuestionCanvas(
       qCanvas,
-      `assets/silhouettes/${poseData.answerImage ?? poseData.image}`,
-      refData?.rawKeyPoints ?? null
+      `assets/silhouettes/${poseData.image}`,
+      null  // ゲームプレイ中は骨格点を表示しない
     );
   }
 
-  const timerBar      = document.getElementById('timer-bar');
-  const scoreDisplay  = document.getElementById('score-display');
-  const cameraCanvas  = document.getElementById('canvas-camera');
-  const overlayCanvas = document.getElementById('canvas-overlay');
-
-  // showScreen() で play 画面が表示された後に canvas 解像度を設定する。
-  // 初期化時は screen-play が display:none のため clientWidth=0 になっており、
-  // そのまま描画しても何も映らないため毎問ここで更新する。
-  if (cameraCanvas) {
-    const p = cameraCanvas.parentElement;
-    if (p && p.clientWidth > 0) {
-      cameraCanvas.width  = p.clientWidth;
-      cameraCanvas.height = p.clientHeight;
-    } else if (!cameraCanvas.width) {
-      cameraCanvas.width  = 640;
-      cameraCanvas.height = 480;
-    }
-  }
-  if (overlayCanvas && cameraCanvas) {
-    overlayCanvas.width  = cameraCanvas.width;
-    overlayCanvas.height = cameraCanvas.height;
-  }
-
-  const cameraCtx  = cameraCanvas  ? cameraCanvas.getContext('2d')  : null;
-  const overlayCtx = overlayCanvas ? overlayCanvas.getContext('2d') : null;
+  const timerBar     = document.getElementById('timer-bar');
+  const scoreDisplay = document.getElementById('score-display');
+  const cameraCanvas = document.getElementById('canvas-camera');
+  const cameraCtx    = cameraCanvas ? cameraCanvas.getContext('2d') : null;
 
   if (timerBar) {
     timerBar.style.width           = '100%';
@@ -298,11 +290,11 @@ async function runQuestion(qIdx, isTutorial = false) {
   }
 
   const { drawLandmarks, drawVideoFrame } = window.CameraModule;
+  const { calcScore7 }                   = window.PoseExtractorModule;
 
-  // ランドマークはスナップショット取得用に保持するだけ（採点は TM が担当）
   currentDetectionCb = (allLandmarks) => {
-    lastLandmarks = allLandmarks;
     if (cameraCtx && cameraCanvas) {
+      // ビデオ映像を描画してから骨格を重ねる
       drawVideoFrame(cameraCtx);
     }
     if (allLandmarks && cameraCtx) {
@@ -310,16 +302,64 @@ async function runQuestion(qIdx, isTutorial = false) {
         drawLandmarks(allLandmarks[i], cameraCtx, i);
       }
     }
-  };
 
-  // チュートリアル中のインゲームヒント
-  const tutHintTimers = [];
-  if (isTutorial && window.TutorialModule) {
-    const { showPlayHint } = window.TutorialModule;
-    tutHintTimers.push(setTimeout(() => showPlayHint('← 左のシルエットがお題です！', 3500), 600));
-    tutHintTimers.push(setTimeout(() => showPlayHint('カメラの前で同じポーズを作ってみよう！', 3500), 4800));
-    tutHintTimers.push(setTimeout(() => showPlayHint('スコアが上がるようにポーズを調整しよう！', 3000), 9000));
-  }
+    if (!allLandmarks || !poseData) {
+      if (scoreDisplay) { scoreDisplay.textContent = '---'; scoreDisplay.style.color = ''; }
+      return;
+    }
+
+    // 採点
+    let bestHandScore = 0;
+    let bestHandLm    = null;
+
+    if (handCount === 2 && allLandmarks.length >= 2) {
+      // 2手採点：手A・手Bの最良割り当て（正方向/反転）で平均スコアを算出
+      const a  = allLandmarks[0];
+      const b  = allLandmarks[1];
+      const r2 = refVec2 ?? refVec;
+      const m2 = mirVec2 ?? mirVec;
+
+      const tryAssign = (r1, r2ref) => {
+        if (!r1 || !r2ref) return 0;
+        const ab = (calcScore7(a, r1) + calcScore7(b, r2ref)) / 2;
+        const ba = (calcScore7(a, r2ref) + calcScore7(b, r1)) / 2;
+        return Math.round(Math.max(ab, ba));
+      };
+
+      let best = tryAssign(refVec, r2);
+      if (mirVec) best = Math.max(best, tryAssign(mirVec, m2));
+      bestHandScore = best;
+      bestHandLm    = allLandmarks[0];
+    } else {
+      // 1手採点（正方向・反転の最高値）
+      for (const lm of allLandmarks) {
+        const s1 = calcScore7(lm, refVec);
+        const s2 = mirVec ? calcScore7(lm, mirVec) : 0;
+        const s  = Math.max(s1, s2);
+        if (s > bestHandScore) { bestHandScore = s; bestHandLm = lm; }
+      }
+    }
+
+    if (scoreDisplay) {
+      scoreDisplay.textContent = String(bestHandScore);
+      scoreDisplay.style.color = bestHandScore >= 80 ? '#EF9F27' : '';
+    }
+
+    if (bestHandScore > bestScore) {
+      bestScore     = bestHandScore;
+      bestLandmarks = bestHandLm.map((lm) => [lm.x, lm.y]);
+
+      if (!newBestActive) {
+        newBestActive = true;
+        setNewBestVisible(true);
+      }
+      if (newBestTimer) clearTimeout(newBestTimer);
+      newBestTimer = setTimeout(() => {
+        setNewBestVisible(false);
+        newBestActive = false;
+      }, NEW_BEST_DURATION);
+    }
+  };
 
   const startTime = performance.now();
   let lastBeepSec = -1;
@@ -342,57 +382,6 @@ async function runQuestion(qIdx, isTutorial = false) {
         }
       }
 
-      // Teachable Machine スコア更新（ノンブロッキング）
-      // cameraCanvas はプレイ中に描画済みなので video-preview より信頼性が高い
-      if (!scoringInProgress && poseData && cameraCanvas && cameraCanvas.width > 0) {
-        scoringInProgress = true;
-        window.ClassifierModule.getPredictions(cameraCanvas)
-          .then((preds) => {
-            scoringInProgress = false;
-            if (!questionActive) return;
-
-            updateProbabilityBars(preds);
-
-            const match = preds.find(p => p.className === poseData.name);
-            const score = match ? Math.round(match.probability * 100) : 0;
-            lastTMScore = score;
-
-            if (scoreDisplay) {
-              scoreDisplay.textContent = String(score);
-              scoreDisplay.style.color = score >= 80 ? '#EF9F27' : '';
-            }
-
-            if (score > bestScore) {
-              bestScore = score;
-              if (lastLandmarks && lastLandmarks[0]) {
-                bestLandmarks = lastLandmarks[0].map(lm => [lm.x, lm.y]);
-              }
-              if (!newBestActive) {
-                newBestActive = true;
-                setNewBestVisible(true);
-              }
-              if (newBestTimer) clearTimeout(newBestTimer);
-              newBestTimer = setTimeout(() => {
-                setNewBestVisible(false);
-                newBestActive = false;
-              }, NEW_BEST_DURATION);
-            }
-          })
-          .catch(() => { scoringInProgress = false; });
-      }
-
-      // エフェクト更新（60fps でスムーズに描画）
-      if (window.EffectsModule && overlayCtx && overlayCanvas) {
-        window.EffectsModule.updateEffect(
-          poseData ? poseData.name : '',
-          lastTMScore,
-          lastLandmarks ? lastLandmarks[0] : null,
-          overlayCtx,
-          overlayCanvas.width,
-          overlayCanvas.height
-        );
-      }
-
       if (elapsed >= QUESTION_DURATION) {
         resolve();
       } else {
@@ -403,74 +392,34 @@ async function runQuestion(qIdx, isTutorial = false) {
   });
 
   currentDetectionCb = null;
-  questionActive = false;
-  if (window.EffectsModule && overlayCtx && overlayCanvas) {
-    window.EffectsModule.clearEffects(overlayCtx, overlayCanvas.width, overlayCanvas.height);
-  }
-  tutHintTimers.forEach(clearTimeout);
-  if (window.TutorialModule) window.TutorialModule.hidePlayHint();
   if (newBestTimer) clearTimeout(newBestTimer);
   setNewBestVisible(false);
 
   await flashBestScore(bestScore);
 
-  if (!isTutorial) {
-    const { saveSnapshot } = window.SnapshotModule;
-    if (bestLandmarks) {
-      const snap = {
-        id:        Date.now(),
-        pose:      poseData.name,
-        score:     bestScore,
-        landmarks: bestLandmarks,
-        timestamp: new Date().toISOString(),
-      };
-      saveSnapshot(snap);
-      sessionSnapshots.push(snap);
-    }
+  const { saveSnapshot } = window.SnapshotModule;
+  if (bestLandmarks) {
+    const snap = {
+      id:        Date.now(),
+      pose:      poseData.name,
+      score:     bestScore,
+      landmarks: bestLandmarks,
+      timestamp: new Date().toISOString(),
+    };
+    saveSnapshot(snap);
+    sessionSnapshots.push(snap);
+  }
 
-    scores.push(bestScore);
+  scores.push(bestScore);
 
-    if (qIdx < QUESTION_COUNT - 1) {
-      await wait(INTERVAL_DURATION);
-    }
+  if (qIdx < QUESTION_COUNT - 1) {
+    await wait(INTERVAL_DURATION);
   }
 }
 
 // ─── エクスポート関数 ─────────────────────────────────────────
 
-async function startTutorial() {
-  if (allPoses.length === 0) await loadPoses();
-
-  // チュートリアルは固定で最初のポーズを1問だけ使用
-  questionOrder = [0];
-
-  ensureReferenceVecs();
-  await runCountdown();
-
-  const { startDetection } = window.CameraModule;
-  startDetection((landmarks) => {
-    if (currentDetectionCb) currentDetectionCb(landmarks);
-  });
-
-  await runQuestion(0, true);
-}
-
 async function startGame() {
-  console.log('[game] startGame() 開始');
-  // モデル未読込でもゲームは即座に開始する（スコアは後から更新される）
-  if (window.ClassifierModule && !window.ClassifierModule.isModelLoaded()) {
-    console.warn('[game] モデル未読込のためバックグラウンドでリトライ中...');
-    window.ClassifierModule.loadModel().catch(() => {});  // ノンブロッキング
-  }
-
-  // 初回プレイはチュートリアルを先に実行する
-  if (window.TutorialModule && window.TutorialModule.isFirstPlay()) {
-    window.TutorialModule.markTutorialDone();
-    await window.TutorialModule.runTutorial();
-    showScreen('screen-title');
-    return;
-  }
-
   scores           = [];
   sessionSnapshots = [];
 
@@ -545,4 +494,24 @@ async function showArtCanvas() {
   showScreen('screen-title');
 }
 
-window.GameModule = { initGame, startGame, startTutorial, showResult, showArtCanvas };
+window.GameModule = {
+  initGame,
+  startGame,
+  showResult,
+  showArtCanvas,
+  showScreen,
+  getAllPoses:       ()         => allPoses,
+  getReferenceVec:  (name)     => referenceVecs[name]  ?? null,
+  getMediapipeVec:  (name)     => mediapipeVecs[name]  ?? null,
+  setReferenceVec:  (name, d)  => {
+    referenceVecs[name] = d;
+    if (d?.vec) {
+      mirroredRefVecs[name] = {
+        vec:  computeMirrorVec(d.vec),
+        vec2: d.vec2 ? computeMirrorVec(d.vec2) : null,
+      };
+    } else {
+      mirroredRefVecs[name] = null;
+    }
+  },
+};

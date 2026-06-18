@@ -137,4 +137,29 @@ function calcScore7(landmarks, refVec) {
   return Math.round((simScore * 0.5 + distScore * 0.5) * 100);
 }
 
-window.PoseExtractorModule = { KEY_INDICES, extractFromImage, extractKeyVec, calcScore7 };
+/**
+ * rawKeyPoints（KEY_INDICES の 12点）から 24次元の正規化ベクトルを返す。
+ * extractKeyVec と同じ正規化ロジックを 12点直接入力に対応させたもの。
+ * エディタで手動配置した骨格点から refVec を生成するために使用する。
+ */
+function computeVecFromKeyPoints(rawKeyPoints) {
+  const wrist   = rawKeyPoints[0];
+  const shifted = rawKeyPoints.map(pt => ({
+    x: pt.x - wrist.x,
+    y: pt.y - wrist.y,
+  }));
+  let maxDist = 0;
+  for (const p of shifted) {
+    const d = Math.sqrt(p.x * p.x + p.y * p.y);
+    if (d > maxDist) maxDist = d;
+  }
+  if (maxDist === 0) return new Array(24).fill(0);
+  const vec = [];
+  for (const p of shifted) {
+    vec.push(p.x / maxDist);
+    vec.push(p.y / maxDist);
+  }
+  return vec;
+}
+
+window.PoseExtractorModule = { KEY_INDICES, extractFromImage, extractKeyVec, calcScore7, computeVecFromKeyPoints };

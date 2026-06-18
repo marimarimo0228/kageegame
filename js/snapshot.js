@@ -1,6 +1,6 @@
 // js/snapshot.js — ベストショット永続保存モジュール（localStorage）
 
-const SNAPSHOT_STORAGE_KEY = 'kagee_snapshots';
+const STORAGE_KEY = 'kagee_snapshots';
 
 /**
  * スナップショットを localStorage に追記する。
@@ -16,7 +16,7 @@ function saveSnapshot(snapshot) {
   const all = loadAllSnapshots();
   all.push(snapshot);
   try {
-    localStorage.setItem(SNAPSHOT_STORAGE_KEY, JSON.stringify(all));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
   } catch (err) {
     if (err.name === 'QuotaExceededError') {
       console.warn('[snapshot] localStorage の容量が上限に達しました。保存をスキップします。');
@@ -33,7 +33,7 @@ function saveSnapshot(snapshot) {
  */
 function loadAllSnapshots() {
   try {
-    const raw = localStorage.getItem(SNAPSHOT_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (raw === null) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -47,7 +47,7 @@ function loadAllSnapshots() {
  * localStorage のスナップショットデータを全削除する。
  */
 function clearSnapshots() {
-  localStorage.removeItem(SNAPSHOT_STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY);
 }
 
 // グローバルスコープへ公開（ES Module 非対応環境向け）

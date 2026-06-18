@@ -1,6 +1,6 @@
 // js/ranking.js — スコアランキング管理モジュール（localStorage）
 
-const RANKING_STORAGE_KEY = 'kagee_ranking';
+const STORAGE_KEY = 'kagee_ranking';
 const MAX_ENTRIES = 1000;
 
 // ─── 内部ヘルパー ─────────────────────────────────────────────
@@ -8,7 +8,7 @@ const MAX_ENTRIES = 1000;
 /** localStorage から全エントリを読み込む。異常時は空配列を返す */
 function loadEntries() {
   try {
-    const raw = localStorage.getItem(RANKING_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (raw === null) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -21,7 +21,7 @@ function loadEntries() {
 /** エントリ配列を localStorage に書き込む */
 function saveEntries(entries) {
   try {
-    localStorage.setItem(RANKING_STORAGE_KEY, JSON.stringify(entries));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
   } catch (err) {
     if (err.name === 'QuotaExceededError') {
       console.warn('[ranking] localStorage の容量が上限に達しました。保存をスキップします。');

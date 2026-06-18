@@ -1,6 +1,6 @@
 // sw.js — Service Worker（Cache First 戦略）
 
-const CACHE_NAME = 'kagee-v6';
+const CACHE_NAME = 'kagee-v7';
 
 const PRECACHE_URLS = [
   '/',
@@ -13,6 +13,7 @@ const PRECACHE_URLS = [
   '/js/artCanvas.js',
   '/js/game.js',
   '/js/ranking.js',
+  '/js/editor.js',
   '/poses/poses.json',
   '/assets/silhouettes/dog.jpg',
   '/assets/silhouettes/bird.jpg',

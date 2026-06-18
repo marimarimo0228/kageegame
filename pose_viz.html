@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ポーズ別 採点骨格点の可視化</title>
+  <!-- MediaPipe Hands（ゲームと同じCDN） -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f1124;
+      color: #e8e8f0;
+      font-family: 'Segoe UI', Meiryo, sans-serif;
+      padding: 28px 20px 40px;
+    }
+    h1 {
+      text-align: center;
+      color: #FFC300;
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #6a7aaa;
+      font-size: 12px;
+      margin-bottom: 30px;
+      font-family: 'Consolas', monospace;
+    }
+
+    /* ─── カード列 ─────────────────────────────────── */
+    .cards {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .card {
+      background: #16213e;
+      border-radius: 16px;
+      overflow: hidden;
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #1a2a50;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #FFC300;
+    }
+    .card-name {
+      font-size: 11px;
+      color: #556;
+      font-family: monospace;
+    }
+    .status {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .status.loading  { background: #1e3a6e; color: #7ec8e3; }
+    .status.ok       { background: #1a4a2e; color: #5DCAA5; }
+    .status.fail     { background: #4a1a1a; color: #E24B4A; }
+
+    .canvas-wrap {
+      position: relative;
+      background: #0a0f20;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .canvas-wrap canvas {
+      display: block;
+      max-width: 300px;
+      height: auto;
+    }
+    .no-detect {
+      color: #E24B4A;
+      font-size: 13px;
+      padding: 20px;
+      text-align: center;
+      display: none;
+    }
+
+    /* 採点点サマリー */
+    .point-list {
+      padding: 12px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      background: #0f1124;
+      border-radius: 12px;
+      padding: 3px 8px;
+      white-space: nowrap;
+    }
+    .chip-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.4);
+      flex-shrink: 0;
+    }
+
+    /* ─── 凡例 ──────────────────────────────────────── */
+    .legend {
+      margin: 32px auto 0;
+      max-width: 950px;
+      background: #16213e;
+      border-radius: 16px;
+      padding: 20px 24px;
+    }
+    .legend h2 { font-size: 14px; color: #FFC300; margin-bottom: 14px; }
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 8px 16px;
+    }
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .ld { border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.4); flex-shrink: 0; }
+    .lds { width: 10px; height: 10px; }
+    .ldl { width: 14px; height: 14px; }
+    .ldm { width: 12px; height: 12px; }
+    .formula {
+      margin-top: 16px;
+      background: #0f1124;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 11.5px;
+      color: #8898c0;
+      line-height: 1.9;
+    }
+    .formula code { color: #7ec8e3; }
+    .formula b { color: #FFC300; }
+  </style>
+</head>
+<body>
+  <h1>ポーズ別 採点骨格点の可視化</h1>
+  <p class="subtitle">
+    KEY_INDICES = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 9]
+    &nbsp;—&nbsp; poseExtractor.js / game.js
+  </p>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="legend">
+    <h2>採点ポイントの凡例（全ポーズ共通）</h2>
+    <div class="legend-grid">
+      <div class="legend-row"><div class="ld lds" style="background:#777;border-color:#999;"></div><span>lm0 — 手首（非表示・正規化原点）</span></div>
+      <div class="legend-row"><div class="ld ldm" style="background:#FFFFFF;"></div><span>lm9 — 中指MCP（手のひら中心）</span></div>
+      <div class="legend-row"><div class="ld lds" style="background:#FF9F43;"></div><span>lm2 — 親指MCP（中間）</span></div>
+      <div class="legend-row"><div class="ld ldl" style="background:#FF9F43;"></div><span>lm4 — 親指先端 TIP</span></div>
+      <div class="legend-row"><div class="ld lds" style="background:#FFC300;"></div><span>lm6 — 人差指PIP（中間）</span></div>
+      <div class="legend-row"><div class="ld ldl" style="background:#FFC300;"></div><span>lm8 — 人差指先端 TIP</span></div>
+      <div class="legend-row"><div class="ld lds" style="background:#5DCAA5;"></div><span>lm10 — 中指PIP（中間）</span></div>
+      <div class="legend-row"><div class="ld ldl" style="background:#5DCAA5;"></div><span>lm12 — 中指先端 TIP</span></div>
+      <div class="legend-row"><div class="ld lds" style="background:#3498DB;"></div><span>lm14 — 薬指PIP（中間）</span></div>
+      <div class="legend-row"><div class="ld ldl" style="background:#3498DB;"></div><span>lm16 — 薬指先端 TIP</span></div>
+      <div class="legend-row"><div class="ld lds" style="background:#E879F9;"></div><span>lm18 — 小指PIP（中間）</span></div>
+      <div class="legend-row"><div class="ld ldl" style="background:#E879F9;"></div><span>lm20 — 小指先端 TIP</span></div>
+    </div>
+    <div class="formula">
+      <b>採点式（calcScore7）</b><br>
+      <code>simScore  = max(0, cosine_similarity)²</code><br>
+      <code>distScore = max(0, 1 − 平均L2距離 / 0.5)</code><br>
+      <code>score = round( (simScore×0.5 + distScore×0.5) × 100 )</code><br><br>
+      小丸 = PIP/MCP（指の曲げ伸ばし角度を評価）　大丸 = TIP（指先位置を評価）<br>
+      手首は正規化の原点として使うが表示・採点からは除外される。
+    </div>
+  </div>
+
+  <script>
+    // ─── ゲームと同じ定数 ───────────────────────────────────────
+    const KEY_INDICES = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 9];
+
+    // POINT_STYLES[i] は rawKeyPoints[i]（KEY_INDICES の i 番目）のスタイル
+    const POINT_STYLES = [
+      null,                           // [0] lm0  手首（非表示）
+      { color: '#FF9F43', r: 0.014 }, // [1] lm2  親指MCP
+      { color: '#FF9F43', r: 0.020 }, // [2] lm4  親指先端
+      { color: '#FFC300', r: 0.014 }, // [3] lm6  人差指PIP
+      { color: '#FFC300', r: 0.020 }, // [4] lm8  人差指先端
+      { color: '#5DCAA5', r: 0.014 }, // [5] lm10 中指PIP
+      { color: '#5DCAA5', r: 0.020 }, // [6] lm12 中指先端
+      { color: '#3498DB', r: 0.014 }, // [7] lm14 薬指PIP
+      { color: '#3498DB', r: 0.020 }, // [8] lm16 薬指先端
+      { color: '#E879F9', r: 0.014 }, // [9] lm18 小指PIP
+      { color: '#E879F9', r: 0.020 }, // [10]lm20 小指先端
+      { color: '#FFFFFF', r: 0.016 }, // [11]lm9  中指MCP
+    ];
+
+    const KEY_CONNECTIONS = [
+      [0, 11], [11, 3], [11, 5], [11, 7], [11, 9],
+      [3, 4], [5, 6], [7, 8], [9, 10],
+      [0, 1], [1, 2],
+    ];
+
+    const CHIP_DEFS = [
+      { label: 'lm9 中指MCP',   color: '#FFFFFF' },
+      { label: 'lm2 親指MCP',   color: '#FF9F43' },
+      { label: 'lm4 親指先端',  color: '#FF9F43' },
+      { label: 'lm6 人差指PIP', color: '#FFC300' },
+      { label: 'lm8 人差指先端',color: '#FFC300' },
+      { label: 'lm10 中指PIP',  color: '#5DCAA5' },
+      { label: 'lm12 中指先端', color: '#5DCAA5' },
+      { label: 'lm14 薬指PIP',  color: '#3498DB' },
+      { label: 'lm16 薬指先端', color: '#3498DB' },
+      { label: 'lm18 小指PIP',  color: '#E879F9' },
+      { label: 'lm20 小指先端', color: '#E879F9' },
+    ];
+
+    const POSES = [
+      { name: 'dog',  label: 'イヌ', image: 'assets/silhouettes/dog.jpg'  },
+      { name: 'bird', label: 'ハト', image: 'assets/silhouettes/bird.jpg' },
+      { name: 'crab', label: 'カニ', image: 'assets/silhouettes/crab.jpg' },
+    ];
+
+    // ─── カードDOM生成 ───────────────────────────────────────────
+    function createCard(pose) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-header">
+          <div>
+            <div class="card-title">${pose.label}</div>
+            <div class="card-name">${pose.name}.jpg</div>
+          </div>
+          <span class="status loading" id="status-${pose.name}">検出中…</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="canvas-${pose.name}"></canvas>
+          <div class="no-detect" id="nodetect-${pose.name}">
+            ⚠️ 手が検出されませんでした
+          </div>
+        </div>
+        <div class="point-list" id="chips-${pose.name}"></div>
+      `;
+      document.getElementById('cards').appendChild(card);
+    }
+
+    // ─── game.js の drawQuestionCanvas と同等の描画 ─────────────
+    function drawOnCanvas(canvas, imageSrc, rawKeyPoints) {
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        canvas.width  = img.naturalWidth  || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        ctx.drawImage(img, 0, 0);
+        if (!rawKeyPoints || rawKeyPoints.length === 0) return;
+
+        const w    = canvas.width;
+        const h    = canvas.height;
+        const base = Math.min(w, h);
+
+        // 接続線
+        ctx.lineWidth   = base * 0.006;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        for (const [a, b] of KEY_CONNECTIONS) {
+          const pa = rawKeyPoints[a];
+          const pb = rawKeyPoints[b];
+          ctx.beginPath();
+          ctx.moveTo(pa.x * w, pa.y * h);
+          ctx.lineTo(pb.x * w, pb.y * h);
+          ctx.stroke();
+        }
+
+        // 採点ポイントのドット
+        rawKeyPoints.forEach((pt, i) => {
+          const style = POINT_STYLES[i];
+          if (!style) return;
+          const x = pt.x * w;
+          const y = pt.y * h;
+          const r = style.r * base;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = style.color;
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+          ctx.lineWidth   = base * 0.003;
+          ctx.stroke();
+        });
+      };
+      img.src = imageSrc;
+    }
+
+    // ─── poseExtractor.js の extractFromImage と同等 ─────────────
+    async function detectHand(imageSrc) {
+      if (typeof Hands === 'undefined') {
+        console.warn('MediaPipe Hands が読み込まれていません');
+        return null;
+      }
+
+      return new Promise((resolve) => {
+        const hands = new Hands({
+          locateFile: (file) =>
+            `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+        });
+        hands.setOptions({
+          maxNumHands: 1,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.3,
+          minTrackingConfidence: 0.3,
+        });
+
+        let settled = false;
+        const done  = (val) => { if (settled) return; settled = true; resolve(val); };
+
+        hands.onResults((results) => {
+          if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            const lm = results.multiHandLandmarks[0];
+            // rawKeyPoints: KEY_INDICES の順に並んだ {x,y} の配列
+            const rawKeyPoints = KEY_INDICES.map(i => ({ x: lm[i].x, y: lm[i].y }));
+            done(rawKeyPoints);
+          } else {
+            done(null);
+          }
+        });
+
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = async () => {
+          const off = document.createElement('canvas');
+          off.width  = img.naturalWidth  || img.width;
+          off.height = img.naturalHeight || img.height;
+          off.getContext('2d').drawImage(img, 0, 0);
+          try {
+            await hands.initialize();
+            await hands.send({ image: off });
+          } catch (e) {
+            console.warn('[detectHand] error:', e);
+            done(null);
+          }
+        };
+        img.onerror = () => done(null);
+        img.src = imageSrc;
+
+        setTimeout(() => done(null), 20000);
+      });
+    }
+
+    // ─── チップ（採点点の一覧）を描画 ────────────────────────────
+    function renderChips(poseNameId) {
+      const wrap = document.getElementById(`chips-${poseNameId}`);
+      CHIP_DEFS.forEach(({ label, color }) => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.innerHTML =
+          `<div class="chip-dot" style="background:${color};"></div><span>${label}</span>`;
+        wrap.appendChild(chip);
+      });
+    }
+
+    // ─── メイン処理（順番に検出） ─────────────────────────────────
+    async function main() {
+      for (const pose of POSES) {
+        createCard(pose);
+      }
+
+      for (const pose of POSES) {
+        const statusEl  = document.getElementById(`status-${pose.name}`);
+        const canvas    = document.getElementById(`canvas-${pose.name}`);
+        const noDetect  = document.getElementById(`nodetect-${pose.name}`);
+
+        statusEl.textContent = '検出中…';
+        statusEl.className   = 'status loading';
+
+        const rawKeyPoints = await detectHand(pose.image);
+
+        if (rawKeyPoints) {
+          statusEl.textContent = '✓ 検出成功';
+          statusEl.className   = 'status ok';
+          drawOnCanvas(canvas, pose.image, rawKeyPoints);
+          renderChips(pose.name);
+        } else {
+          statusEl.textContent  = '✗ 未検出';
+          statusEl.className    = 'status fail';
+          noDetect.style.display = 'block';
+          // シルエットだけ表示（骨格なし）
+          const img = new Image();
+          img.onload = () => {
+            canvas.width  = img.naturalWidth  || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+          };
+          img.src = pose.image;
+        }
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>

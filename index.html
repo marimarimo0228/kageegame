@@ -12,12 +12,6 @@
   <!-- MediaPipe Hands（CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-
-  <!-- TensorFlow.js（Teachable Machine の依存ライブラリ・先に読む） -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js" crossorigin="anonymous"></script>
-
-  <!-- Teachable Machine Image（CDN） -->
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -35,6 +29,10 @@
       <button id="btn-start" class="btn-primary"
               onclick="window.GameModule.startGame()">
         スタート
+      </button>
+      <button class="btn-editor-open"
+              onclick="window.EditorModule.openEditor()">
+        ✏️ 答えの調整
       </button>
     </div>
 
@@ -80,33 +78,15 @@
         <canvas id="canvas-question" aria-label="お題画像と採点ポイント"></canvas>
       </div>
 
-      <!-- 右半分: カメラ映像 + 骨格オーバーレイ + リアルタイムスコア -->
+      <!-- 右半分: カメラ映像 + 骨格オーバーレイ -->
       <div class="play-right">
         <canvas id="canvas-camera" aria-label="カメラ映像と手骨格"></canvas>
-        <canvas id="canvas-overlay" aria-hidden="true"></canvas>
-        <div id="score-display" aria-live="polite">---</div>
-
-        <!-- 確率バー（各クラスの予測確率を表示） -->
-        <div id="prob-bars" aria-hidden="true">
-          <div class="prob-row">
-            <span class="prob-label">イヌ</span>
-            <div class="prob-track"><div class="prob-fill" id="prob-dog"></div></div>
-            <span class="prob-val" id="prob-val-dog">0%</span>
-          </div>
-          <div class="prob-row">
-            <span class="prob-label">ハト</span>
-            <div class="prob-track"><div class="prob-fill" id="prob-bird"></div></div>
-            <span class="prob-val" id="prob-val-bird">0%</span>
-          </div>
-          <div class="prob-row">
-            <span class="prob-label">カニ</span>
-            <div class="prob-track"><div class="prob-fill" id="prob-crab"></div></div>
-            <span class="prob-val" id="prob-val-crab">0%</span>
-          </div>
-        </div>
       </div>
 
     </div>
+
+    <!-- 中央浮上: リアルタイムスコア -->
+    <div id="score-display" aria-live="polite">---</div>
 
     <!-- 問題終了時: ベストスコアフラッシュ -->
     <div id="flash-score" style="display:none" aria-live="assertive"></div>
@@ -151,6 +131,66 @@
 
 
   <!-- ══════════════════════════════════════════════
+       #screen-editor  答え骨格調整エディタ
+  ══════════════════════════════════════════════ -->
+  <section id="screen-editor" style="display:none">
+
+    <!-- ヘッダー -->
+    <div class="editor-header">
+      <button id="editor-back-btn" class="btn-secondary editor-back-btn">
+        ← 戻る
+      </button>
+      <h2 class="editor-title">答えの骨格調整</h2>
+      <div class="editor-header-right">
+        <span id="editor-saved-badge" class="editor-saved-badge" style="display:none">
+          保存済み ✓
+        </span>
+      </div>
+    </div>
+
+    <!-- ポーズ選択タブ -->
+    <div class="editor-tabs" id="editor-tabs"></div>
+
+    <!-- ポーズ名ラベル + 手の本数選択 -->
+    <div class="editor-pose-label">
+      <span id="editor-pose-name"></span>
+      <div class="editor-hand-count" id="editor-hand-count">
+        <span class="editor-hand-count-label">手の本数</span>
+        <button class="editor-hand-count-btn active" data-count="1">1本</button>
+        <button class="editor-hand-count-btn" data-count="2">2本</button>
+      </div>
+    </div>
+
+    <!-- 手1 / 手2 タブ（2本登録時のみ表示） -->
+    <div class="editor-hand-tabs" id="editor-hand-tabs" style="display:none">
+      <button class="editor-hand-tab active" data-hand="0">手 1</button>
+      <button class="editor-hand-tab" data-hand="1">手 2</button>
+    </div>
+
+    <!-- キャンバスエリア（flex:1 で残り高さを確保） -->
+    <div class="editor-canvas-wrap" id="editor-canvas-wrap">
+      <canvas id="editor-canvas"></canvas>
+    </div>
+
+    <!-- 操作説明 / 選択中ポイント名 -->
+    <p class="editor-hint" id="editor-point-info">
+      ドラッグして骨格点を移動できます
+    </p>
+
+    <!-- アクションボタン -->
+    <div class="editor-actions">
+      <button id="editor-reset-btn" class="btn-secondary">
+        リセット
+      </button>
+      <button id="editor-save-btn" class="btn-primary">
+        💾 保存
+      </button>
+    </div>
+
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
        #screen-art  蓄積アート画面
   ══════════════════════════════════════════════ -->
   <section id="screen-art" style="display:none">
@@ -160,41 +200,17 @@
 
 
   <!-- ══════════════════════════════════════════════
-       チュートリアルオーバーレイ
-  ══════════════════════════════════════════════ -->
-  <div id="tutorial-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
-
-    <!-- ▼▼▼ キャラクター挿入ポイント ▼▼▼
-         方法A（JS）: TutorialModule.TutorialCharacter.imageUrl = 'assets/guide.png';
-         方法B（HTML）: この要素の中に <img class="tut-char-img"> を直接追加
-    -->
-    <div id="tutorial-character-slot" class="tut-char-slot"></div>
-    <!-- ▲▲▲ キャラクター挿入ポイント ▲▲▲ -->
-
-    <div class="tut-speech-bubble">
-      <h2 id="tutorial-title" class="tut-title"></h2>
-      <p  id="tutorial-message" class="tut-message"></p>
-      <button id="tutorial-next-btn" class="btn-primary tut-next-btn">次へ</button>
-    </div>
-
-  </div>
-
-  <!-- インゲームヒント（チュートリアル中に画面上に表示される吹き出し） -->
-  <div id="tutorial-play-hint" aria-live="polite"></div>
-
-
-  <!-- ══════════════════════════════════════════════
        JS: 依存モジュール → ゲーム本体 の順に読み込む
   ══════════════════════════════════════════════ -->
+  <script src="js/constants.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/classifier.js"></script>
   <script src="js/poseExtractor.js"></script>
   <script src="js/snapshot.js"></script>
   <script src="js/artCanvas.js"></script>
-  <script src="js/tutorial.js"></script>
-  <script src="js/effects.js"></script>
   <script src="js/game.js"></script>
   <script src="js/ranking.js"></script>
+  <script src="js/editor.js"></script>
 
   <!-- ページ読み込み時の初期化 -->
   <script>
@@ -202,11 +218,11 @@
       const video  = document.getElementById('video-preview');
       const canvas = document.getElementById('canvas-camera');
 
-      // カメラ & MediaPipe 初期化
-      await window.CameraModule.initCamera(video, canvas);
-
-      // poses.json 読み込み & 参照骨格をバックグラウンドで抽出開始
+      // poses.json を先に読み込む（エディタが即座に使えるように）
       await window.GameModule.initGame();
+
+      // カメラ & MediaPipe 初期化（poses 読み込み完了後）
+      await window.CameraModule.initCamera(video, canvas);
 
       // タイトル背景に蓄積アートを描画
       const artCanvas = document.getElementById('canvas-art');
