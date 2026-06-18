@@ -18,7 +18,7 @@ let scores             = [];   // 各問題のベストスコア
 let sessionSnapshots   = [];   // 今回のセッションで保存した snapshot
 let currentDetectionCb = null;
 
-let audioCtx = null;
+let _beepCtx = null;  // countdown / timer ビープ用（effects.js の audioCtx と名前衝突を避けるため改名）
 
 // ─── お題キャンバス描画 ───────────────────────────────────────
 
@@ -109,18 +109,18 @@ function showScreen(id) {
 
 function playBeep(freq = 880, duration = 0.12) {
   try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!_beepCtx) {
+      _beepCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    const osc  = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    const osc  = _beepCtx.createOscillator();
+    const gain = _beepCtx.createGain();
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(_beepCtx.destination);
     osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + duration);
+    gain.gain.setValueAtTime(0.25, _beepCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, _beepCtx.currentTime + duration);
+    osc.start(_beepCtx.currentTime);
+    osc.stop(_beepCtx.currentTime + duration);
   } catch (_) {}
 }
 
@@ -183,7 +183,14 @@ function ensureReferenceVecs() {
  */
 async function initGame() {
   await loadPoses();
-  await loadTemplateImages();
+  // モデル読み込みはバックグラウンドで開始（完了を待たずページ初期化を続行）
+  if (window.ClassifierModule) {
+    window.ClassifierModule.loadModel().catch(() => {});
+  }
+  const _overlayCanvas = document.getElementById('canvas-overlay');
+  if (_overlayCanvas && window.EffectsModule) {
+    window.EffectsModule.initEffects(_overlayCanvas);
+  }
   ensureReferenceVecs(); // await しない（バックグラウンドで先行開始・骨格オーバーレイ用）
 }
 
@@ -219,23 +226,38 @@ async function flashBestScore(score) {
   el.style.display = 'none';
 }
 
+// ─── 確率バー更新 ─────────────────────────────────────────────
+
+function updateProbabilityBars(preds) {
+  for (const { className, probability } of preds) {
+    const pct  = Math.round(probability * 100);
+    const fill = document.getElementById(`prob-${className}`);
+    const val  = document.getElementById(`prob-val-${className}`);
+    if (fill) fill.style.width = `${pct}%`;
+    if (val)  val.textContent  = `${pct}%`;
+  }
+}
+
 // ─── 1問の進行 ────────────────────────────────────────────────
 
-async function runQuestion(qIdx) {
+async function runQuestion(qIdx, isTutorial = false) {
   showScreen('screen-play');
 
-  const poseData       = allPoses[questionOrder[qIdx]];
-  const refData        = poseData ? (referenceVecs[poseData.name] ?? null) : null;
-  const currentTemplate = allTemplates.find((t) => t.name === poseData?.name) ?? null;
+  const poseData = allPoses[questionOrder[qIdx]];
+  const refData  = poseData ? (referenceVecs[poseData.name] ?? null) : null;
 
-  let bestScore     = 0;
-  let bestLandmarks = null;
-  let newBestTimer  = null;
-  let newBestActive = false;
+  let bestScore         = 0;
+  let bestLandmarks     = null;
+  let lastLandmarks     = null;
+  let lastTMScore       = 0;
+  let questionActive    = true;
+  let scoringInProgress = false;
+  let newBestTimer      = null;
+  let newBestActive     = false;
 
   const qNumEl    = document.getElementById('question-number');
   const qCanvas   = document.getElementById('canvas-question');
-  if (qNumEl) qNumEl.textContent = `${qIdx + 1} / ${QUESTION_COUNT}`;
+  if (qNumEl) qNumEl.textContent = isTutorial ? 'チュートリアル' : `${qIdx + 1} / ${QUESTION_COUNT}`;
   if (qCanvas && poseData) {
     drawQuestionCanvas(
       qCanvas,
@@ -244,9 +266,10 @@ async function runQuestion(qIdx) {
     );
   }
 
-  const timerBar     = document.getElementById('timer-bar');
-  const scoreDisplay = document.getElementById('score-display');
-  const cameraCanvas = document.getElementById('canvas-camera');
+  const timerBar      = document.getElementById('timer-bar');
+  const scoreDisplay  = document.getElementById('score-display');
+  const cameraCanvas  = document.getElementById('canvas-camera');
+  const overlayCanvas = document.getElementById('canvas-overlay');
 
   // showScreen() で play 画面が表示された後に canvas 解像度を設定する。
   // 初期化時は screen-play が display:none のため clientWidth=0 になっており、
@@ -261,18 +284,24 @@ async function runQuestion(qIdx) {
       cameraCanvas.height = 480;
     }
   }
+  if (overlayCanvas && cameraCanvas) {
+    overlayCanvas.width  = cameraCanvas.width;
+    overlayCanvas.height = cameraCanvas.height;
+  }
 
-  const cameraCtx = cameraCanvas ? cameraCanvas.getContext('2d') : null;
+  const cameraCtx  = cameraCanvas  ? cameraCanvas.getContext('2d')  : null;
+  const overlayCtx = overlayCanvas ? overlayCanvas.getContext('2d') : null;
 
   if (timerBar) {
     timerBar.style.width           = '100%';
     timerBar.style.backgroundColor = '';
   }
 
-  const { drawLandmarks, drawVideoFrame }                          = window.CameraModule;
-  const { getBestPoseScore, getBoundingBox, applyBboxConstraints } = window.ClassifierModule;
+  const { drawLandmarks, drawVideoFrame } = window.CameraModule;
 
+  // ランドマークはスナップショット取得用に保持するだけ（採点は TM が担当）
   currentDetectionCb = (allLandmarks) => {
+    lastLandmarks = allLandmarks;
     if (cameraCtx && cameraCanvas) {
       drawVideoFrame(cameraCtx);
     }
@@ -280,46 +309,17 @@ async function runQuestion(qIdx) {
       for (let i = 0; i < allLandmarks.length; i++) {
         drawLandmarks(allLandmarks[i], cameraCtx, i);
       }
-
-      // 手を囲むバウンディングボックスを描画（ポーズごとの最小サイズ制約を適用）
-      const rawBbox = getBoundingBox(allLandmarks, cameraCanvas.width, cameraCanvas.height);
-      const bbox    = applyBboxConstraints(rawBbox, cameraCanvas.width, cameraCanvas.height, poseData?.bboxConstraints ?? null);
-      cameraCtx.save();
-      cameraCtx.strokeStyle = 'rgba(255, 255, 255, 0.80)';
-      cameraCtx.lineWidth   = 2;
-      cameraCtx.setLineDash([8, 4]);
-      cameraCtx.strokeRect(bbox.x, bbox.y, bbox.w, bbox.h);
-      cameraCtx.setLineDash([]);
-      cameraCtx.restore();
-    }
-
-    if (!allLandmarks || !poseData || !currentTemplate?.img) {
-      if (scoreDisplay) { scoreDisplay.textContent = '---'; scoreDisplay.style.color = ''; }
-      return;
-    }
-
-    const { score: bestHandScore } = getBestPoseScore(cameraCanvas, allLandmarks, [currentTemplate], poseData?.bboxConstraints ?? null);
-
-    if (scoreDisplay) {
-      scoreDisplay.textContent = String(bestHandScore);
-      scoreDisplay.style.color = bestHandScore >= 80 ? '#EF9F27' : '';
-    }
-
-    if (bestHandScore > bestScore) {
-      bestScore     = bestHandScore;
-      bestLandmarks = allLandmarks[0].map((lm) => [lm.x, lm.y]);
-
-      if (!newBestActive) {
-        newBestActive = true;
-        setNewBestVisible(true);
-      }
-      if (newBestTimer) clearTimeout(newBestTimer);
-      newBestTimer = setTimeout(() => {
-        setNewBestVisible(false);
-        newBestActive = false;
-      }, NEW_BEST_DURATION);
     }
   };
+
+  // チュートリアル中のインゲームヒント
+  const tutHintTimers = [];
+  if (isTutorial && window.TutorialModule) {
+    const { showPlayHint } = window.TutorialModule;
+    tutHintTimers.push(setTimeout(() => showPlayHint('← 左のシルエットがお題です！', 3500), 600));
+    tutHintTimers.push(setTimeout(() => showPlayHint('カメラの前で同じポーズを作ってみよう！', 3500), 4800));
+    tutHintTimers.push(setTimeout(() => showPlayHint('スコアが上がるようにポーズを調整しよう！', 3000), 9000));
+  }
 
   const startTime = performance.now();
   let lastBeepSec = -1;
@@ -342,6 +342,57 @@ async function runQuestion(qIdx) {
         }
       }
 
+      // Teachable Machine スコア更新（ノンブロッキング）
+      // cameraCanvas はプレイ中に描画済みなので video-preview より信頼性が高い
+      if (!scoringInProgress && poseData && cameraCanvas && cameraCanvas.width > 0) {
+        scoringInProgress = true;
+        window.ClassifierModule.getPredictions(cameraCanvas)
+          .then((preds) => {
+            scoringInProgress = false;
+            if (!questionActive) return;
+
+            updateProbabilityBars(preds);
+
+            const match = preds.find(p => p.className === poseData.name);
+            const score = match ? Math.round(match.probability * 100) : 0;
+            lastTMScore = score;
+
+            if (scoreDisplay) {
+              scoreDisplay.textContent = String(score);
+              scoreDisplay.style.color = score >= 80 ? '#EF9F27' : '';
+            }
+
+            if (score > bestScore) {
+              bestScore = score;
+              if (lastLandmarks && lastLandmarks[0]) {
+                bestLandmarks = lastLandmarks[0].map(lm => [lm.x, lm.y]);
+              }
+              if (!newBestActive) {
+                newBestActive = true;
+                setNewBestVisible(true);
+              }
+              if (newBestTimer) clearTimeout(newBestTimer);
+              newBestTimer = setTimeout(() => {
+                setNewBestVisible(false);
+                newBestActive = false;
+              }, NEW_BEST_DURATION);
+            }
+          })
+          .catch(() => { scoringInProgress = false; });
+      }
+
+      // エフェクト更新（60fps でスムーズに描画）
+      if (window.EffectsModule && overlayCtx && overlayCanvas) {
+        window.EffectsModule.updateEffect(
+          poseData ? poseData.name : '',
+          lastTMScore,
+          lastLandmarks ? lastLandmarks[0] : null,
+          overlayCtx,
+          overlayCanvas.width,
+          overlayCanvas.height
+        );
+      }
+
       if (elapsed >= QUESTION_DURATION) {
         resolve();
       } else {
@@ -352,34 +403,74 @@ async function runQuestion(qIdx) {
   });
 
   currentDetectionCb = null;
+  questionActive = false;
+  if (window.EffectsModule && overlayCtx && overlayCanvas) {
+    window.EffectsModule.clearEffects(overlayCtx, overlayCanvas.width, overlayCanvas.height);
+  }
+  tutHintTimers.forEach(clearTimeout);
+  if (window.TutorialModule) window.TutorialModule.hidePlayHint();
   if (newBestTimer) clearTimeout(newBestTimer);
   setNewBestVisible(false);
 
   await flashBestScore(bestScore);
 
-  const { saveSnapshot } = window.SnapshotModule;
-  if (bestLandmarks) {
-    const snap = {
-      id:        Date.now(),
-      pose:      poseData.name,
-      score:     bestScore,
-      landmarks: bestLandmarks,
-      timestamp: new Date().toISOString(),
-    };
-    saveSnapshot(snap);
-    sessionSnapshots.push(snap);
-  }
+  if (!isTutorial) {
+    const { saveSnapshot } = window.SnapshotModule;
+    if (bestLandmarks) {
+      const snap = {
+        id:        Date.now(),
+        pose:      poseData.name,
+        score:     bestScore,
+        landmarks: bestLandmarks,
+        timestamp: new Date().toISOString(),
+      };
+      saveSnapshot(snap);
+      sessionSnapshots.push(snap);
+    }
 
-  scores.push(bestScore);
+    scores.push(bestScore);
 
-  if (qIdx < QUESTION_COUNT - 1) {
-    await wait(INTERVAL_DURATION);
+    if (qIdx < QUESTION_COUNT - 1) {
+      await wait(INTERVAL_DURATION);
+    }
   }
 }
 
 // ─── エクスポート関数 ─────────────────────────────────────────
 
+async function startTutorial() {
+  if (allPoses.length === 0) await loadPoses();
+
+  // チュートリアルは固定で最初のポーズを1問だけ使用
+  questionOrder = [0];
+
+  ensureReferenceVecs();
+  await runCountdown();
+
+  const { startDetection } = window.CameraModule;
+  startDetection((landmarks) => {
+    if (currentDetectionCb) currentDetectionCb(landmarks);
+  });
+
+  await runQuestion(0, true);
+}
+
 async function startGame() {
+  console.log('[game] startGame() 開始');
+  // モデル未読込でもゲームは即座に開始する（スコアは後から更新される）
+  if (window.ClassifierModule && !window.ClassifierModule.isModelLoaded()) {
+    console.warn('[game] モデル未読込のためバックグラウンドでリトライ中...');
+    window.ClassifierModule.loadModel().catch(() => {});  // ノンブロッキング
+  }
+
+  // 初回プレイはチュートリアルを先に実行する
+  if (window.TutorialModule && window.TutorialModule.isFirstPlay()) {
+    window.TutorialModule.markTutorialDone();
+    await window.TutorialModule.runTutorial();
+    showScreen('screen-title');
+    return;
+  }
+
   scores           = [];
   sessionSnapshots = [];
 
@@ -454,4 +545,4 @@ async function showArtCanvas() {
   showScreen('screen-title');
 }
 
-window.GameModule = { initGame, startGame, showResult, showArtCanvas };
+window.GameModule = { initGame, startGame, startTutorial, showResult, showArtCanvas };

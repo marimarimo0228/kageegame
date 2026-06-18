@@ -12,6 +12,12 @@
   <!-- MediaPipe Hands（CDN） -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+  <!-- TensorFlow.js（Teachable Machine の依存ライブラリ・先に読む） -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js" crossorigin="anonymous"></script>
+
+  <!-- Teachable Machine Image（CDN） -->
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -77,7 +83,27 @@
       <!-- 右半分: カメラ映像 + 骨格オーバーレイ + リアルタイムスコア -->
       <div class="play-right">
         <canvas id="canvas-camera" aria-label="カメラ映像と手骨格"></canvas>
+        <canvas id="canvas-overlay" aria-hidden="true"></canvas>
         <div id="score-display" aria-live="polite">---</div>
+
+        <!-- 確率バー（各クラスの予測確率を表示） -->
+        <div id="prob-bars" aria-hidden="true">
+          <div class="prob-row">
+            <span class="prob-label">イヌ</span>
+            <div class="prob-track"><div class="prob-fill" id="prob-dog"></div></div>
+            <span class="prob-val" id="prob-val-dog">0%</span>
+          </div>
+          <div class="prob-row">
+            <span class="prob-label">ハト</span>
+            <div class="prob-track"><div class="prob-fill" id="prob-bird"></div></div>
+            <span class="prob-val" id="prob-val-bird">0%</span>
+          </div>
+          <div class="prob-row">
+            <span class="prob-label">カニ</span>
+            <div class="prob-track"><div class="prob-fill" id="prob-crab"></div></div>
+            <span class="prob-val" id="prob-val-crab">0%</span>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -134,6 +160,30 @@
 
 
   <!-- ══════════════════════════════════════════════
+       チュートリアルオーバーレイ
+  ══════════════════════════════════════════════ -->
+  <div id="tutorial-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+
+    <!-- ▼▼▼ キャラクター挿入ポイント ▼▼▼
+         方法A（JS）: TutorialModule.TutorialCharacter.imageUrl = 'assets/guide.png';
+         方法B（HTML）: この要素の中に <img class="tut-char-img"> を直接追加
+    -->
+    <div id="tutorial-character-slot" class="tut-char-slot"></div>
+    <!-- ▲▲▲ キャラクター挿入ポイント ▲▲▲ -->
+
+    <div class="tut-speech-bubble">
+      <h2 id="tutorial-title" class="tut-title"></h2>
+      <p  id="tutorial-message" class="tut-message"></p>
+      <button id="tutorial-next-btn" class="btn-primary tut-next-btn">次へ</button>
+    </div>
+
+  </div>
+
+  <!-- インゲームヒント（チュートリアル中に画面上に表示される吹き出し） -->
+  <div id="tutorial-play-hint" aria-live="polite"></div>
+
+
+  <!-- ══════════════════════════════════════════════
        JS: 依存モジュール → ゲーム本体 の順に読み込む
   ══════════════════════════════════════════════ -->
   <script src="js/camera.js"></script>
@@ -141,6 +191,8 @@
   <script src="js/poseExtractor.js"></script>
   <script src="js/snapshot.js"></script>
   <script src="js/artCanvas.js"></script>
+  <script src="js/tutorial.js"></script>
+  <script src="js/effects.js"></script>
   <script src="js/game.js"></script>
   <script src="js/ranking.js"></script>
 

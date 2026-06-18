@@ -279,6 +279,16 @@ section[id^="screen-"] {
   transform: scaleX(-1);
 }
 
+#canvas-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: scaleX(-1); /* camera canvas と同じミラーを適用 */
+  z-index: 5;
+}
+
 /* リアルタイムスコア（カメラ映像の下部中央に浮上） */
 #score-display {
   position: absolute;
@@ -294,6 +304,56 @@ section[id^="screen-"] {
   transition: color 0.15s;
   white-space: nowrap;
   z-index: 10;
+}
+
+/* 確率バー */
+#prob-bars {
+  position: absolute;
+  bottom: 0.8rem;
+  left: 0.8rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  pointer-events: none;
+}
+
+.prob-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.prob-label {
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  width: 2.4em;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.prob-track {
+  width: 72px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.prob-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-green);
+  border-radius: 3px;
+  transition: width 0.12s ease;
+}
+
+.prob-val {
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  width: 2.6em;
+  text-align: left;
+  flex-shrink: 0;
 }
 
 /* 問題終了フラッシュ */
@@ -450,4 +510,102 @@ section[id^="screen-"] {
 @keyframes fade-up {
   from { opacity: 0; transform: translateX(-50%) translateY(12px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
+}
+
+
+/* ══════════════════════════════════════════════════════
+   チュートリアルオーバーレイ  #tutorial-overlay
+══════════════════════════════════════════════════════ */
+
+#tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(13, 17, 23, 0.88);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  gap: 1.5rem;
+  animation: tut-fade-in 0.25s ease-out;
+}
+
+@keyframes tut-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── キャラクタースロット ────────────────────────────
+   ▼ キャラクター未設定時は非表示（display:none）
+   ▼ TutorialCharacter.imageUrl をセットすると flex に切り替わり表示される */
+.tut-char-slot {
+  display: none;
+  flex-shrink: 0;
+  align-items: flex-end;
+  justify-content: center;
+  width: 120px;
+  max-height: 220px;
+}
+
+.tut-char-img {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+}
+
+/* ── 吹き出し ────────────────────────────────────── */
+.tut-speech-bubble {
+  background: rgba(13, 17, 23, 0.96);
+  border: 1.5px solid rgba(93, 202, 165, 0.4);
+  border-radius: 16px;
+  padding: 1.8rem 2.2rem;
+  max-width: 540px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tut-title {
+  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+  font-weight: 800;
+  color: var(--accent-green);
+  letter-spacing: 0.06em;
+}
+
+.tut-message {
+  font-size: clamp(0.85rem, 2.2vw, 1rem);
+  color: var(--text);
+  line-height: 1.85;
+  white-space: pre-line;
+}
+
+.tut-next-btn {
+  align-self: flex-end;
+  margin-top: 0.4rem;
+}
+
+/* ── インゲームヒント ────────────────────────────── */
+#tutorial-play-hint {
+  position: fixed;
+  bottom: 5.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  background: rgba(13, 17, 23, 0.88);
+  border: 1px solid rgba(93, 202, 165, 0.45);
+  border-radius: 8px;
+  padding: 0.6rem 1.5rem;
+  font-size: clamp(0.82rem, 2.5vw, 1rem);
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+#tutorial-play-hint.visible {
+  opacity: 1;
 }
