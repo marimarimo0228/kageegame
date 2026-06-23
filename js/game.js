@@ -556,12 +556,13 @@ function _ensureDetection() {
 
 // ─── 骨格調整（キャリブレーション）─────────────────────────────
 
-const CALIB_STORAGE_KEY = 'kagee_custom_refs';
+const CALIB_STORAGE_KEY   = 'kagee_custom_refs';
+const CALIB_DEFAULT_KEY   = 'kagee_default_refs';
 
 // ── キャリブレーション専用ポイントスタイル ─────────────────────
 // 手0: 暖色系（オレンジ統一）  ※質問キャンバスの POINT_STYLES とは別
 const CALIB_STYLES_H0 = [
-  null,
+  { color: '#FF6B00', r: 0.022 }, // wrist     - 濃オレンジ（根本点）
   { color: '#FFAD5C', r: 0.014 }, // thumbIP   - 薄オレンジ
   { color: '#FF8C00', r: 0.020 }, // thumbTip  - オレンジ
   { color: '#FFAD5C', r: 0.014 }, // indexPIP
@@ -577,7 +578,7 @@ const CALIB_STYLES_H0 = [
 
 // 手1: 寒色系（シアン統一）
 const CALIB_STYLES_H1 = [
-  null,
+  { color: '#0090CC', r: 0.022 }, // wrist     - 濃シアン（根本点）
   { color: '#5CD8FF', r: 0.014 }, // thumbIP   - 薄シアン
   { color: '#00ADDE', r: 0.020 }, // thumbTip  - シアン
   { color: '#5CD8FF', r: 0.014 }, // indexPIP
@@ -593,7 +594,7 @@ const CALIB_STYLES_H1 = [
 
 // クリック時に表示する関節名ラベル（KEY_INDICES の配列順に対応）
 const POINT_LABELS = [
-  null,
+  '手首',
   '親指 関節',   '親指 先端',
   '人差指 関節', '人差指 先端',
   '中指 関節',   '中指 先端',
@@ -625,6 +626,19 @@ function _saveCustomRef(poseName, refData) {
   const refs = _loadCustomRefs();
   refs[poseName] = refData;
   localStorage.setItem(CALIB_STORAGE_KEY, JSON.stringify(refs));
+}
+
+function _loadDefaultRefs() {
+  try {
+    const raw = localStorage.getItem(CALIB_DEFAULT_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) { return {}; }
+}
+
+function _saveDefaultRef(poseName, data) {
+  const refs = _loadDefaultRefs();
+  refs[poseName] = data;
+  localStorage.setItem(CALIB_DEFAULT_KEY, JSON.stringify(refs));
 }
 
 function _deleteCustomRef(poseName) {
@@ -960,22 +974,61 @@ function calibRegister() {
   _calibSetStatus('登録しました！');
 }
 
+// 現在の編集点をこのポーズのデフォルトとして保存
+function calibSaveDefault() {
+  if (_calibEditPoints.length !== 12) {
+    _calibSetStatus('点が設定されていません', true);
+    return;
+  }
+  const defaultData = {
+    rawKeyPoints: _calibEditPoints.map(p => ({ x: p.x, y: p.y })),
+    hands: _calibHands,
+  };
+  if (_calibHands === 2 && _calibEditPoints2.length === 12) {
+    defaultData.rawKeyPoints2 = _calibEditPoints2.map(p => ({ x: p.x, y: p.y }));
+  }
+  _saveDefaultRef(_calibPose, defaultData);
+  _calibSetStatus('デフォルトとして保存しました！');
+}
+
 function calibReset() {
-  _deleteCustomRef(_calibPose);
-  const poseData = allPoses.find(p => p.name === _calibPose);
-  if (!poseData) return;
-  const { extractFromImage } = window.PoseExtractorModule;
-  extractFromImage(`assets/silhouettes/${poseData.image}`)
-    .then(data => {
-      if (data) {
-        referenceVecs[_calibPose] = data;
-        _calibInitPoints(_calibPose);
-        _calibDrawEditor();
-        _calibSetStatus('リセットしました');
-      } else {
-        _calibSetStatus('リセット失敗（骨格抽出できず）', true);
-      }
-    });
+  const defaults = _loadDefaultRefs();
+  const defaultData = defaults[_calibPose];
+
+  if (defaultData) {
+    // ユーザーが登録したデフォルトに戻す
+    _calibHands = (defaultData.hands === 2) ? 2 : 1;
+    if (defaultData.rawKeyPoints && defaultData.rawKeyPoints.length === 12) {
+      _calibEditPoints = defaultData.rawKeyPoints.map(p => ({ x: p.x, y: p.y }));
+    }
+    if (_calibHands === 2 && defaultData.rawKeyPoints2 && defaultData.rawKeyPoints2.length === 12) {
+      _calibEditPoints2 = defaultData.rawKeyPoints2.map(p => ({ x: p.x, y: p.y }));
+    } else {
+      _calibEditPoints2 = [];
+    }
+    _calibLabelHand = -1;
+    _calibLabelIdx  = -1;
+    _calibUpdateHandToggle();
+    _calibDrawEditor();
+    _calibSetStatus('デフォルトに戻しました');
+  } else {
+    // デフォルト未登録: 元画像から骨格を再抽出
+    _deleteCustomRef(_calibPose);
+    const poseData = allPoses.find(p => p.name === _calibPose);
+    if (!poseData) return;
+    const { extractFromImage } = window.PoseExtractorModule;
+    extractFromImage(`assets/silhouettes/${poseData.image}`)
+      .then(data => {
+        if (data) {
+          referenceVecs[_calibPose] = data;
+          _calibInitPoints(_calibPose);
+          _calibDrawEditor();
+          _calibSetStatus('リセットしました');
+        } else {
+          _calibSetStatus('リセット失敗（骨格抽出できず）', true);
+        }
+      });
+  }
 }
 
 // 登録済み骨格に対してカメラ手のリアルタイムスコアを計算（通常+ミラー反転の高い方）
@@ -1078,5 +1131,5 @@ function exitCalibrateScreen() {
 window.GameModule = {
   initGame, startGame, startTutorial, showResult, showArtCanvas,
   showCalibrateScreen, exitCalibrateScreen,
-  calibSelectPose, calibSetHands, calibRegister, calibReset,
+  calibSelectPose, calibSetHands, calibRegister, calibSaveDefault, calibReset,
 };
