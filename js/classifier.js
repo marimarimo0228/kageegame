@@ -98,4 +98,3 @@ async function calcScore(videoEl, currentPose) {
 }
 
 window.ClassifierModule = { loadModel, isModelLoaded, calcScore, getPredictions };
-//mame
