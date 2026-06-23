@@ -12,8 +12,9 @@ const TUTORIAL_DONE_KEY = 'kagee_tutorial_done';
 // imageUrl をセットするだけでキャラクターが表示されます。
 // show() / hide() をオーバーライドして独自ロジックを追加することもできます。
 const TutorialCharacter = {
-  imageUrl: null,
-  name:     'ガイド',
+  // チュートリアルキャラクター画像。assets/ に追加したJPEGを使います。
+  imageUrl: 'assets/tutorial-character.jpg',
+  name:     'チュートリアルキャラ',
 
   show() {
     const slot = document.getElementById('tutorial-character-slot');
