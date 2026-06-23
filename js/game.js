@@ -651,6 +651,7 @@ function _ensureDetection() {
 
 const CALIB_STORAGE_KEY   = 'kagee_custom_refs';
 const CALIB_DEFAULT_KEY   = 'kagee_default_refs';
+const CALIB_DATA_VERSION  = 2; // 変更時: 旧 localStorage データを自動破棄
 
 // ── キャリブレーション専用ポイントスタイル ─────────────────────
 // 手0: 暖色系（オレンジ統一）  ※質問キャンバスの POINT_STYLES とは別
@@ -711,13 +712,21 @@ let _calibEditImg     = null; // シルエット背景画像
 function _loadCustomRefs() {
   try {
     const raw = localStorage.getItem(CALIB_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const data = JSON.parse(raw);
+    // バージョン不一致（旧形式 or 2手対応前）は無効とみなし破棄
+    if (data._version !== CALIB_DATA_VERSION) {
+      localStorage.removeItem(CALIB_STORAGE_KEY);
+      return {};
+    }
+    return data;
   } catch (_) { return {}; }
 }
 
 function _saveCustomRef(poseName, refData) {
   const refs = _loadCustomRefs();
-  refs[poseName] = refData;
+  refs[poseName]  = refData;
+  refs._version   = CALIB_DATA_VERSION;
   localStorage.setItem(CALIB_STORAGE_KEY, JSON.stringify(refs));
 }
 
