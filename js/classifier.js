@@ -8,7 +8,7 @@
 //   'Class 1': 'bird', 'Class 2': 'crab', 'Class 3': 'dog'
 //
 // metadata.json を直接書き換えた場合（現在の設定）はこのマップは使われない。
-// モデルが返すクラス名が既に dog/bird/crab であれば LABEL_MAP は不要。
+// モデルが返すクラス名が既に dog/bird/crab であれば LABEL_MAP は不要。 
 const LABEL_MAP = {
   'Class 1': 'dog',
   'Class 2': 'bird',
@@ -98,3 +98,4 @@ async function calcScore(videoEl, currentPose) {
 }
 
 window.ClassifierModule = { loadModel, isModelLoaded, calcScore, getPredictions };
+//mame
