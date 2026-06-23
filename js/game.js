@@ -13,6 +13,7 @@ let allPoses           = [];   // poses.json 全体
 let allTemplates       = [];   // { name, label, img } の配列（プリロード済み画像）
 let referenceVecs      = {};   // { pose名: { vec, rawKeyPoints } | null }（骨格オーバーレイ用）
 let _extractionPromise = null; // 抽出の重複実行を防ぐシングルトンPromise
+let _detectionStarted  = false; // startDetection の二重起動を防ぐフラグ
 let questionOrder      = [];   // 今回の問題順（allPoses のインデックス列）
 let scores             = [];   // 各問題のベストスコア
 let sessionSnapshots   = [];   // 今回のセッションで保存した snapshot
@@ -162,11 +163,18 @@ async function loadTemplateImages() {
 
 async function extractAllReferenceVecs() {
   const { extractFromImage } = window.PoseExtractorModule;
+  const custom = _loadCustomRefs();
   for (const pose of allPoses) {
     if (pose.name in referenceVecs) continue;
-    referenceVecs[pose.name] = await extractFromImage(
-      `assets/silhouettes/${pose.image}`
-    );
+    if (custom[pose.name]) {
+      // localStorage に保存されたカスタム骨格を優先使用
+      referenceVecs[pose.name] = custom[pose.name];
+      console.log(`[calib] カスタム骨格を使用: ${pose.name}`);
+    } else {
+      referenceVecs[pose.name] = await extractFromImage(
+        `assets/silhouettes/${pose.image}`
+      );
+    }
   }
 }
 
@@ -186,6 +194,7 @@ async function initGame() {
   // モデル読み込みはバックグラウンドで開始（完了を待たずページ初期化を続行）
   if (window.ClassifierModule) {
     window.ClassifierModule.loadModel().catch(() => {});
+    window.ClassifierModule.loadSilhouetteTemplates().catch(() => {});
   }
   const _overlayCanvas = document.getElementById('canvas-overlay');
   if (_overlayCanvas && window.EffectsModule) {
@@ -342,19 +351,18 @@ async function runQuestion(qIdx, isTutorial = false) {
         }
       }
 
-      // Teachable Machine スコア更新（ノンブロッキング）
-      // cameraCanvas はプレイ中に描画済みなので video-preview より信頼性が高い
+      // 最終スコア更新（TM・骨格・シルエットの平均、手未検出時は 0、ノンブロッキング）
       if (!scoringInProgress && poseData && cameraCanvas && cameraCanvas.width > 0) {
         scoringInProgress = true;
-        window.ClassifierModule.getPredictions(cameraCanvas)
-          .then((preds) => {
+        window.ClassifierModule.getFinalScore(
+          cameraCanvas, lastLandmarks, poseData.name, refData
+        )
+          .then((score) => {
             scoringInProgress = false;
             if (!questionActive) return;
 
-            updateProbabilityBars(preds);
+            updateProbabilityBars(window.ClassifierModule.getLastPredictions());
 
-            const match = preds.find(p => p.className === poseData.name);
-            const score = match ? Math.round(match.probability * 100) : 0;
             lastTMScore = score;
 
             if (scoreDisplay) {
@@ -445,13 +453,8 @@ async function startTutorial() {
   questionOrder = [0];
 
   ensureReferenceVecs();
+  _ensureDetection();
   await runCountdown();
-
-  const { startDetection } = window.CameraModule;
-  startDetection((landmarks) => {
-    if (currentDetectionCb) currentDetectionCb(landmarks);
-  });
-
   await runQuestion(0, true);
 }
 
@@ -480,12 +483,8 @@ async function startGame() {
 
   // 骨格抽出はバックグラウンドで実行（完了を待たずゲーム進行）
   ensureReferenceVecs();
+  _ensureDetection();
   await runCountdown();
-
-  const { startDetection } = window.CameraModule;
-  startDetection((landmarks) => {
-    if (currentDetectionCb) currentDetectionCb(landmarks);
-  });
 
   for (let i = 0; i < QUESTION_COUNT; i++) {
     await runQuestion(i);
@@ -545,4 +544,539 @@ async function showArtCanvas() {
   showScreen('screen-title');
 }
 
-window.GameModule = { initGame, startGame, startTutorial, showResult, showArtCanvas };
+// ─── カメラ検出の一元管理 ─────────────────────────────────────
+
+function _ensureDetection() {
+  if (_detectionStarted) return;
+  _detectionStarted = true;
+  window.CameraModule.startDetection((landmarks) => {
+    if (currentDetectionCb) currentDetectionCb(landmarks);
+  });
+}
+
+// ─── 骨格調整（キャリブレーション）─────────────────────────────
+
+const CALIB_STORAGE_KEY = 'kagee_custom_refs';
+
+// ── キャリブレーション専用ポイントスタイル ─────────────────────
+// 手0: 暖色系（オレンジ統一）  ※質問キャンバスの POINT_STYLES とは別
+const CALIB_STYLES_H0 = [
+  null,
+  { color: '#FFAD5C', r: 0.014 }, // thumbIP   - 薄オレンジ
+  { color: '#FF8C00', r: 0.020 }, // thumbTip  - オレンジ
+  { color: '#FFAD5C', r: 0.014 }, // indexPIP
+  { color: '#FF8C00', r: 0.020 }, // indexTip
+  { color: '#FFAD5C', r: 0.014 }, // midPIP
+  { color: '#FF8C00', r: 0.020 }, // midTip
+  { color: '#FFAD5C', r: 0.014 }, // ringPIP
+  { color: '#FF8C00', r: 0.020 }, // ringTip
+  { color: '#FFAD5C', r: 0.014 }, // pinkyPIP
+  { color: '#FF8C00', r: 0.020 }, // pinkyTip
+  { color: '#FFE4B0', r: 0.016 }, // midMCP    - 薄アンバー
+];
+
+// 手1: 寒色系（シアン統一）
+const CALIB_STYLES_H1 = [
+  null,
+  { color: '#5CD8FF', r: 0.014 }, // thumbIP   - 薄シアン
+  { color: '#00ADDE', r: 0.020 }, // thumbTip  - シアン
+  { color: '#5CD8FF', r: 0.014 }, // indexPIP
+  { color: '#00ADDE', r: 0.020 }, // indexTip
+  { color: '#5CD8FF', r: 0.014 }, // midPIP
+  { color: '#00ADDE', r: 0.020 }, // midTip
+  { color: '#5CD8FF', r: 0.014 }, // ringPIP
+  { color: '#00ADDE', r: 0.020 }, // ringTip
+  { color: '#5CD8FF', r: 0.014 }, // pinkyPIP
+  { color: '#00ADDE', r: 0.020 }, // pinkyTip
+  { color: '#B0EEFF', r: 0.016 }, // midMCP    - 薄スカイブルー
+];
+
+// クリック時に表示する関節名ラベル（KEY_INDICES の配列順に対応）
+const POINT_LABELS = [
+  null,
+  '親指 関節',   '親指 先端',
+  '人差指 関節', '人差指 先端',
+  '中指 関節',   '中指 先端',
+  '薬指 関節',   '薬指 先端',
+  '小指 関節',   '小指 先端',
+  '手のひら',
+];
+
+let _calibPose        = 'dog';
+let _calibHands       = 1;    // 1 or 2
+let _calibLandmarks   = null;
+let _calibStatusTimer = null;
+let _calibEditPoints  = [];   // 手0: 12点 {x,y} 正規化 [0,1]
+let _calibEditPoints2 = [];   // 手1: 12点 {x,y} 正規化 [0,1]（2手モード時）
+let _calibDragHand    = -1;   // ドラッグ中の手インデックス（0/1/-1）
+let _calibDragIdx     = -1;   // ドラッグ中の点インデックス（-1: なし）
+let _calibLabelHand   = -1;   // ラベル表示中の手インデックス
+let _calibLabelIdx    = -1;   // ラベル表示中の点インデックス
+let _calibEditImg     = null; // シルエット背景画像
+
+function _loadCustomRefs() {
+  try {
+    const raw = localStorage.getItem(CALIB_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) { return {}; }
+}
+
+function _saveCustomRef(poseName, refData) {
+  const refs = _loadCustomRefs();
+  refs[poseName] = refData;
+  localStorage.setItem(CALIB_STORAGE_KEY, JSON.stringify(refs));
+}
+
+function _deleteCustomRef(poseName) {
+  const refs = _loadCustomRefs();
+  delete refs[poseName];
+  localStorage.setItem(CALIB_STORAGE_KEY, JSON.stringify(refs));
+}
+
+function _calibSetStatus(msg, isError = false) {
+  const el = document.getElementById('calib-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--accent-red)' : 'var(--accent-green)';
+  if (_calibStatusTimer) clearTimeout(_calibStatusTimer);
+  _calibStatusTimer = setTimeout(() => { el.textContent = ''; }, 2500);
+}
+
+// 正規化ベクトルのx成分を反転（左右ミラー）
+function _flipVec(vec) {
+  return vec.map((v, i) => i % 2 === 0 ? -v : v);
+}
+
+// rawKeyPoints（12点）から正規化ベクトルを計算（poseExtractor の extractKeyVec と等価）
+function _computeVecFromPoints(points) {
+  const wrist   = points[0];
+  const shifted = points.map(pt => ({ x: pt.x - wrist.x, y: pt.y - wrist.y }));
+  let maxDist = 0;
+  for (const p of shifted) {
+    const d = Math.sqrt(p.x * p.x + p.y * p.y);
+    if (d > maxDist) maxDist = d;
+  }
+  if (maxDist === 0) return new Array(24).fill(0);
+  const vec = [];
+  for (const p of shifted) { vec.push(p.x / maxDist, p.y / maxDist); }
+  return vec;
+}
+
+function _defaultHandPoints() {
+  return [
+    { x: 0.50, y: 0.83 },
+    { x: 0.37, y: 0.67 },
+    { x: 0.28, y: 0.56 },
+    { x: 0.44, y: 0.46 },
+    { x: 0.43, y: 0.30 },
+    { x: 0.50, y: 0.43 },
+    { x: 0.50, y: 0.26 },
+    { x: 0.57, y: 0.45 },
+    { x: 0.57, y: 0.30 },
+    { x: 0.63, y: 0.50 },
+    { x: 0.65, y: 0.37 },
+    { x: 0.50, y: 0.61 },
+  ];
+}
+
+// 手数トグルUIを現在の _calibHands に合わせて更新
+function _calibUpdateHandToggle() {
+  document.querySelectorAll('.calib-hand-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.hands) === _calibHands);
+  });
+}
+
+// referenceVecs から編集点を初期化（未登録時はデフォルト配置）
+function _calibInitPoints(poseName) {
+  const refData = referenceVecs[poseName];
+  _calibHands = (refData && refData.hands === 2) ? 2 : 1;
+
+  // 手0
+  if (refData && refData.rawKeyPoints && refData.rawKeyPoints.length === 12) {
+    _calibEditPoints = refData.rawKeyPoints.map(p => ({ x: p.x, y: p.y }));
+  } else {
+    _calibEditPoints = _defaultHandPoints();
+  }
+
+  // 手1（2手モード時）
+  if (_calibHands === 2) {
+    if (refData && refData.rawKeyPoints2 && refData.rawKeyPoints2.length === 12) {
+      _calibEditPoints2 = refData.rawKeyPoints2.map(p => ({ x: p.x, y: p.y }));
+    } else {
+      _calibEditPoints2 = _calibEditPoints.map(p => ({
+        x: Math.max(0, p.x - 0.25),
+        y: p.y,
+      }));
+    }
+  } else {
+    _calibEditPoints2 = [];
+  }
+
+  _calibUpdateHandToggle();
+}
+
+// 1手の骨格をエディタキャンバスに描画（hand0: CALIB_STYLES_H0、hand1: CALIB_STYLES_H1）
+function _calibDrawHand(ctx, w, h, base, points, styles, handIdx) {
+  if (!points || points.length === 0) return;
+
+  ctx.lineWidth   = Math.max(1, base * 0.006);
+  ctx.strokeStyle = handIdx === 0 ? 'rgba(255,160,0,0.55)' : 'rgba(0,173,222,0.55)';
+  for (const [a, b] of KEY_CONNECTIONS) {
+    const pa = points[a];
+    const pb = points[b];
+    if (!pa || !pb) continue;
+    ctx.beginPath();
+    ctx.moveTo(pa.x * w, pa.y * h);
+    ctx.lineTo(pb.x * w, pb.y * h);
+    ctx.stroke();
+  }
+
+  points.forEach((pt, i) => {
+    const style = styles[i];
+    if (!style) return;
+    const x = pt.x * w;
+    const y = pt.y * h;
+    const r = style.r * base;
+
+    if (handIdx === _calibDragHand && i === _calibDragIdx) {
+      ctx.beginPath();
+      ctx.arc(x, y, r * 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = style.color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth   = Math.max(1, base * 0.003);
+    ctx.stroke();
+  });
+}
+
+// エディタキャンバスを再描画
+function _calibDrawEditor() {
+  const canvas = document.getElementById('calib-canvas-edit');
+  if (!canvas) return;
+  const ctx  = canvas.getContext('2d');
+  const w    = canvas.width;
+  const h    = canvas.height;
+  const base = Math.min(w, h);
+
+  ctx.clearRect(0, 0, w, h);
+
+  if (_calibEditImg && _calibEditImg.complete && _calibEditImg.naturalWidth > 0) {
+    ctx.drawImage(_calibEditImg, 0, 0, w, h);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  _calibDrawHand(ctx, w, h, base, _calibEditPoints,  CALIB_STYLES_H0, 0);
+  if (_calibHands === 2) {
+    _calibDrawHand(ctx, w, h, base, _calibEditPoints2, CALIB_STYLES_H1, 1);
+  }
+
+  // クリック選択中の点にラベルバブルを表示
+  if (_calibLabelHand >= 0 && _calibLabelIdx >= 0 && POINT_LABELS[_calibLabelIdx]) {
+    const pts = _calibLabelHand === 0 ? _calibEditPoints : _calibEditPoints2;
+    const pt  = pts[_calibLabelIdx];
+    if (pt) {
+      const joint  = POINT_LABELS[_calibLabelIdx];
+      const prefix = _calibHands === 2 ? (_calibLabelHand === 0 ? '右手 ' : '左手 ') : '';
+      const text   = prefix + joint;
+      const bgColor = _calibLabelHand === 0 ? 'rgba(200, 95, 0, 0.92)' : 'rgba(0, 110, 160, 0.92)';
+      const fz     = Math.max(12, Math.round(base * 0.044));
+      const padX = 10, padY = 5;
+      ctx.font = `bold ${fz}px system-ui, sans-serif`;
+      const tw = ctx.measureText(text).width;
+      const bw = tw + padX * 2;
+      const bh = fz + padY * 2;
+      const px = pt.x * w;
+      const py = pt.y * h;
+      let bx = px - bw / 2;
+      let by = py - bh - base * 0.055;
+      bx = Math.max(2, Math.min(w - bw - 2, bx));
+      if (by < 2) by = py + base * 0.04;
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 5);
+      else ctx.rect(bx, by, bw, bh);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, bx + bw / 2, by + bh / 2);
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'alphabetic';
+    }
+  }
+}
+
+// クリック座標に最も近い点を返す（どの手かも含む）
+function _calibGetPointAt(cx, cy) {
+  const canvas = document.getElementById('calib-canvas-edit');
+  if (!canvas) return { hand: -1, idx: -1 };
+  const w   = canvas.width;
+  const h   = canvas.height;
+  const HIT = Math.min(w, h) * 0.06;
+  let bestHand = -1, bestIdx = -1, minDist = Infinity;
+
+  const check = (points, styles, handIdx) => {
+    points.forEach((pt, i) => {
+      if (!styles[i]) return;
+      const dx = cx - pt.x * w;
+      const dy = cy - pt.y * h;
+      const d  = Math.sqrt(dx * dx + dy * dy);
+      if (d < HIT && d < minDist) { minDist = d; bestHand = handIdx; bestIdx = i; }
+    });
+  };
+
+  check(_calibEditPoints, CALIB_STYLES_H0, 0);
+  if (_calibHands === 2) check(_calibEditPoints2, CALIB_STYLES_H1, 1);
+  return { hand: bestHand, idx: bestIdx };
+}
+
+// イベント座標をキャンバス内ピクセル座標に変換
+function _calibCanvasPos(e, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const src  = e.touches ? e.touches[0] : e;
+  return {
+    x: (src.clientX - rect.left) * (canvas.width  / rect.width),
+    y: (src.clientY - rect.top)  * (canvas.height / rect.height),
+  };
+}
+
+// クリックでラベルを表示するイベントをバインド（DOM 要素に1回のみ）
+function _calibBindLabelEvents() {
+  const canvas = document.getElementById('calib-canvas-edit');
+  if (!canvas || canvas._calibLabelBound) return;
+  canvas._calibLabelBound = true;
+  canvas.addEventListener('click', (e) => {
+    const { x, y } = _calibCanvasPos(e, canvas);
+    const { hand, idx } = _calibGetPointAt(x, y);
+    _calibLabelHand = hand;
+    _calibLabelIdx  = idx;
+    _calibDrawEditor();
+  });
+}
+
+// ドラッグイベントをバインド（DOM 要素に1回のみ）
+function _calibBindEditorEvents() {
+  const canvas = document.getElementById('calib-canvas-edit');
+  if (!canvas || canvas._calibBound) return;
+  canvas._calibBound = true;
+
+  const onStart = (e) => {
+    e.preventDefault();
+    const { x, y } = _calibCanvasPos(e, canvas);
+    const { hand, idx } = _calibGetPointAt(x, y);
+    _calibDragHand = hand;
+    _calibDragIdx  = idx;
+    canvas.style.cursor = idx >= 0 ? 'grabbing' : 'grab';
+    _calibDrawEditor();
+  };
+  const onMove = (e) => {
+    e.preventDefault();
+    if (_calibDragIdx < 0 || _calibDragHand < 0) return;
+    const { x, y } = _calibCanvasPos(e, canvas);
+    const newPt = {
+      x: Math.max(0, Math.min(1, x / canvas.width)),
+      y: Math.max(0, Math.min(1, y / canvas.height)),
+    };
+    if (_calibDragHand === 0) _calibEditPoints[_calibDragIdx]  = newPt;
+    else                      _calibEditPoints2[_calibDragIdx] = newPt;
+    _calibDrawEditor();
+  };
+  const onEnd = (e) => {
+    e.preventDefault();
+    _calibDragHand = -1;
+    _calibDragIdx  = -1;
+    canvas.style.cursor = 'grab';
+    _calibDrawEditor();
+  };
+
+  canvas.addEventListener('mousedown',  onStart, { passive: false });
+  canvas.addEventListener('mousemove',  onMove,  { passive: false });
+  canvas.addEventListener('mouseup',    onEnd,   { passive: false });
+  canvas.addEventListener('mouseleave', onEnd,   { passive: false });
+  canvas.addEventListener('touchstart', onStart, { passive: false });
+  canvas.addEventListener('touchmove',  onMove,  { passive: false });
+  canvas.addEventListener('touchend',   onEnd,   { passive: false });
+}
+
+function calibSelectPose(poseName) {
+  _calibPose = poseName;
+  document.querySelectorAll('.calib-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.pose === poseName);
+  });
+  _calibInitPoints(poseName);
+
+  const poseData = allPoses.find(p => p.name === poseName);
+  if (poseData) {
+    const src = `assets/silhouettes/${poseData.answerImage ?? poseData.image}`;
+    _calibEditImg = new Image();
+    _calibEditImg.onload = () => _calibDrawEditor();
+    _calibEditImg.src = src;
+  }
+
+  _calibLabelHand = -1;
+  _calibLabelIdx  = -1;
+  const el = document.getElementById('calib-status');
+  if (el) el.textContent = '';
+}
+
+// 手数トグル（1手 / 2手）
+function calibSetHands(n) {
+  _calibHands     = n;
+  _calibLabelHand = -1;
+  _calibLabelIdx  = -1;
+  _calibUpdateHandToggle();
+  if (n === 2 && _calibEditPoints2.length === 0) {
+    _calibEditPoints2 = _calibEditPoints.map(p => ({
+      x: Math.max(0, p.x - 0.25),
+      y: p.y,
+    }));
+  }
+  _calibDrawEditor();
+}
+
+// 編集中の点位置をそのまま登録
+function calibRegister() {
+  if (_calibEditPoints.length !== 12) {
+    _calibSetStatus('点が設定されていません', true);
+    return;
+  }
+  const refData = {
+    vec:          _computeVecFromPoints(_calibEditPoints),
+    rawKeyPoints: _calibEditPoints.map(p => ({ x: p.x, y: p.y })),
+    hands:        _calibHands,
+  };
+  if (_calibHands === 2 && _calibEditPoints2.length === 12) {
+    refData.vec2          = _computeVecFromPoints(_calibEditPoints2);
+    refData.rawKeyPoints2 = _calibEditPoints2.map(p => ({ x: p.x, y: p.y }));
+  }
+  referenceVecs[_calibPose] = refData;
+  _saveCustomRef(_calibPose, refData);
+  _calibSetStatus('登録しました！');
+}
+
+function calibReset() {
+  _deleteCustomRef(_calibPose);
+  const poseData = allPoses.find(p => p.name === _calibPose);
+  if (!poseData) return;
+  const { extractFromImage } = window.PoseExtractorModule;
+  extractFromImage(`assets/silhouettes/${poseData.image}`)
+    .then(data => {
+      if (data) {
+        referenceVecs[_calibPose] = data;
+        _calibInitPoints(_calibPose);
+        _calibDrawEditor();
+        _calibSetStatus('リセットしました');
+      } else {
+        _calibSetStatus('リセット失敗（骨格抽出できず）', true);
+      }
+    });
+}
+
+// 登録済み骨格に対してカメラ手のリアルタイムスコアを計算（通常+ミラー反転の高い方）
+function _calibComputeLiveScore(allLandmarks) {
+  const refData = referenceVecs[_calibPose];
+  if (!refData || !allLandmarks || allLandmarks.length === 0) return 0;
+  const { calcScore7 } = window.PoseExtractorModule;
+
+  if (refData.hands === 2 && refData.vec && refData.vec2) {
+    if (allLandmarks.length >= 2) {
+      // 両手検出: 組み合わせ(2通り) × ミラー(2通り) = 4通りの最大値
+      const f0 = _flipVec(refData.vec), f1 = _flipVec(refData.vec2);
+      const sA  = (calcScore7(allLandmarks[0], refData.vec)  + calcScore7(allLandmarks[1], refData.vec2)) / 2;
+      const sB  = (calcScore7(allLandmarks[0], refData.vec2) + calcScore7(allLandmarks[1], refData.vec))  / 2;
+      const sAf = (calcScore7(allLandmarks[0], f0) + calcScore7(allLandmarks[1], f1)) / 2;
+      const sBf = (calcScore7(allLandmarks[0], f1) + calcScore7(allLandmarks[1], f0)) / 2;
+      return Math.round(Math.max(sA, sB, sAf, sBf));
+    }
+    if (!allLandmarks[0]) return 0;
+    // 片手のみ検出: 2つの正解それぞれにミラー込みで照合し高い方を採用
+    const s0 = Math.max(calcScore7(allLandmarks[0], refData.vec),  calcScore7(allLandmarks[0], _flipVec(refData.vec)));
+    const s1 = Math.max(calcScore7(allLandmarks[0], refData.vec2), calcScore7(allLandmarks[0], _flipVec(refData.vec2)));
+    return Math.round(Math.max(s0, s1));
+  }
+
+  if (!allLandmarks[0] || !refData.vec) return 0;
+  // 1手登録: 通常+ミラーの高い方
+  return Math.round(Math.max(
+    calcScore7(allLandmarks[0], refData.vec),
+    calcScore7(allLandmarks[0], _flipVec(refData.vec))
+  ));
+}
+
+function showCalibrateScreen() {
+  showScreen('screen-calibrate');
+  _ensureDetection();
+
+  const editCanvas = document.getElementById('calib-canvas-edit');
+  const camCanvas  = document.getElementById('calib-canvas-camera');
+  const ovCanvas   = document.getElementById('calib-canvas-overlay');
+
+  if (editCanvas) {
+    const p = editCanvas.parentElement;
+    editCanvas.width  = (p && p.clientWidth  > 0) ? p.clientWidth  : 480;
+    editCanvas.height = (p && p.clientHeight > 0) ? p.clientHeight : 480;
+    _calibBindEditorEvents();
+    _calibBindLabelEvents();
+  }
+  if (camCanvas) {
+    const p = camCanvas.parentElement;
+    camCanvas.width  = (p && p.clientWidth  > 0) ? p.clientWidth  : 480;
+    camCanvas.height = (p && p.clientHeight > 0) ? p.clientHeight : 480;
+  }
+  if (ovCanvas && camCanvas) {
+    ovCanvas.width  = camCanvas.width;
+    ovCanvas.height = camCanvas.height;
+  }
+
+  calibSelectPose(_calibPose);
+
+  const camCtx  = camCanvas?.getContext('2d');
+  const ovCtx   = ovCanvas?.getContext('2d');
+  const scoreEl = document.getElementById('calib-score');
+  const { drawVideoFrame, drawLandmarks } = window.CameraModule;
+
+  currentDetectionCb = (allLandmarks) => {
+    _calibLandmarks = allLandmarks;
+    if (camCtx && camCanvas) drawVideoFrame(camCtx);
+    if (ovCtx && ovCanvas) {
+      ovCtx.clearRect(0, 0, ovCanvas.width, ovCanvas.height);
+      if (allLandmarks) {
+        for (let i = 0; i < allLandmarks.length; i++) {
+          drawLandmarks(allLandmarks[i], ovCtx, i);
+        }
+      }
+    }
+    // 登録済み骨格に対するリアルタイムスコア表示
+    if (scoreEl) {
+      const hasHand = allLandmarks && allLandmarks.length > 0;
+      if (!hasHand) {
+        scoreEl.textContent = '---';
+        scoreEl.style.color = 'var(--text)';
+      } else {
+        const s = _calibComputeLiveScore(allLandmarks);
+        scoreEl.textContent = String(s);
+        scoreEl.style.color = s >= 80 ? 'var(--accent-yellow)' : 'var(--text)';
+      }
+    }
+  };
+}
+
+function exitCalibrateScreen() {
+  currentDetectionCb = null;
+  _calibLandmarks    = null;
+  _calibEditImg      = null;
+  _calibEditPoints2  = [];
+  showScreen('screen-title');
+}
+
+window.GameModule = {
+  initGame, startGame, startTutorial, showResult, showArtCanvas,
+  showCalibrateScreen, exitCalibrateScreen,
+  calibSelectPose, calibSetHands, calibRegister, calibReset,
+};

@@ -36,6 +36,10 @@
               onclick="window.GameModule.startGame()">
         スタート
       </button>
+      <button class="btn-secondary"
+              onclick="window.GameModule.showCalibrateScreen()">
+        骨格調整
+      </button>
     </div>
 
     <!-- 左下: カメラプレビュー -->
@@ -114,6 +118,59 @@
     <!-- 右上: NEW BEST! ラベル -->
     <div id="new-best-label" style="display:none" aria-live="polite">NEW BEST!</div>
 
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       #screen-calibrate  骨格調整画面
+  ══════════════════════════════════════════════ -->
+  <section id="screen-calibrate" style="display:none">
+    <div class="calib-layout">
+
+      <!-- ヘッダー: 戻るボタン + ポーズ選択タブ + 手数トグル -->
+      <div class="calib-header">
+        <button class="btn-secondary calib-back-btn"
+                onclick="window.GameModule.exitCalibrateScreen()">← 戻る</button>
+        <div class="calib-tabs">
+          <button class="calib-tab active" data-pose="dog"
+                  onclick="window.GameModule.calibSelectPose('dog')">イヌ</button>
+          <button class="calib-tab" data-pose="bird"
+                  onclick="window.GameModule.calibSelectPose('bird')">ハト</button>
+          <button class="calib-tab" data-pose="crab"
+                  onclick="window.GameModule.calibSelectPose('crab')">カニ</button>
+        </div>
+        <div class="calib-hand-toggle">
+          <span class="calib-hand-label">手の数:</span>
+          <button class="calib-hand-btn active" data-hands="1"
+                  onclick="window.GameModule.calibSetHands(1)">1手</button>
+          <button class="calib-hand-btn" data-hands="2"
+                  onclick="window.GameModule.calibSetHands(2)">2手</button>
+        </div>
+      </div>
+
+      <!-- メインエリア: 左=点編集キャンバス / 右=カメラ映像 -->
+      <div class="calib-main">
+        <div class="calib-left">
+          <p class="calib-label">点をドラッグして骨格を調整</p>
+          <canvas id="calib-canvas-edit" aria-label="骨格編集キャンバス"></canvas>
+        </div>
+        <div class="calib-right">
+          <canvas id="calib-canvas-camera" aria-label="カメラ映像"></canvas>
+          <canvas id="calib-canvas-overlay" aria-hidden="true"></canvas>
+          <div id="calib-score" aria-live="polite">---</div>
+        </div>
+      </div>
+
+      <!-- フッター: アクションボタン + ステータス -->
+      <div class="calib-footer">
+        <button class="btn-primary"
+                onclick="window.GameModule.calibRegister()">登録</button>
+        <button class="btn-secondary"
+                onclick="window.GameModule.calibReset()">リセット</button>
+        <span id="calib-status" aria-live="polite"></span>
+      </div>
+
+    </div>
   </section>
 
 

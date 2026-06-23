@@ -609,3 +609,185 @@ section[id^="screen-"] {
 #tutorial-play-hint.visible {
   opacity: 1;
 }
+
+
+/* ══════════════════════════════════════════════════════
+   骨格調整画面  #screen-calibrate
+══════════════════════════════════════════════════════ */
+
+#screen-calibrate {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.calib-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.calib-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.025);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.calib-back-btn {
+  padding: 5px 18px;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.calib-tabs {
+  display: flex;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.calib-tab {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 18px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.calib-tab:hover  { color: var(--text); border-color: var(--accent-green); }
+.calib-tab.active { background: var(--accent-green); color: #0d1117; border-color: var(--accent-green); }
+
+.calib-hand-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.calib-hand-label {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.calib-hand-btn {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 3px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.calib-hand-btn:hover  { color: var(--text); border-color: var(--accent-green); }
+.calib-hand-btn.active { background: var(--accent-green); color: #0d1117; border-color: var(--accent-green); }
+
+.calib-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.calib-left {
+  flex: 1;
+  position: relative;
+  border-right: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.015);
+  overflow: hidden;
+}
+
+.calib-label {
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: rgba(13, 17, 23, 0.78);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+#calib-canvas-edit {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.calib-right {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#calib-canvas-camera {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(-1);
+}
+
+#calib-canvas-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: scaleX(-1);
+  z-index: 5;
+}
+
+.calib-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.6rem 1.1rem;
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.025);
+  flex-shrink: 0;
+}
+
+.calib-footer .btn-primary,
+.calib-footer .btn-secondary {
+  padding: 8px 22px;
+  font-size: 0.88rem;
+}
+
+#calib-status {
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  min-height: 1em;
+}
+
+#calib-score {
+  position: absolute;
+  bottom: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(2rem, 6vw, 4rem);
+  font-weight: 900;
+  color: var(--text);
+  text-shadow: 0 2px 20px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.8);
+  pointer-events: none;
+  letter-spacing: 0.04em;
+  z-index: 10;
+  white-space: nowrap;
+}
