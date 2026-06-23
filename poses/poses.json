@@ -1,5 +1,10 @@
 [
   {
+    "name": "choki", "label": "チョキ", "image": "choki.png", "answerImage": "choki-a.png",
+    "bboxConstraints": { "minWidthRatio": 0.30, "minHeightRatio": 0.50 },
+    "samples": []
+  },
+  {
     "name": "dog",  "label": "イヌ",  "image": "dog.jpg",  "answerImage": "dog-a.png",
     "bboxConstraints": { "minWidthRatio": 0.45, "minHeightRatio": 0.35 },
     "samples": []
