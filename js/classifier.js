@@ -100,9 +100,10 @@ async function calcScore(videoEl, currentPose) {
 // ── シルエット照合スコア ───────────────────────────────────────────
 
 const ASPECT_RATIO_LIMITS = {
-  bird: { min: 0.8, max: 1.4 },
-  crab: { min: 1.0, max: 1.8 },
-  dog:  { min: 0.6, max: 1.2 },
+  bird:  { min: 0.8, max: 1.4 },
+  crab:  { min: 1.0, max: 1.8 },
+  dog:   { min: 0.6, max: 1.2 },
+  choki: { min: 0.4, max: 0.85 },
 };
 
 let silhouetteTemplates = null;
@@ -157,9 +158,10 @@ async function _loadAndBinarize(src) {
 
 async function loadSilhouetteTemplates() {
   const entries = [
-    { name: 'bird', fileA: 'assets/silhouettes/bird.jpg',  fileB: 'assets/silhouettes/bird-a.png' },
-    { name: 'crab', fileA: 'assets/silhouettes/crab.jpg',  fileB: 'assets/silhouettes/crab-a.png' },
-    { name: 'dog',  fileA: 'assets/silhouettes/dog.jpg',   fileB: 'assets/silhouettes/dog-a.png'  },
+    { name: 'bird',  fileA: 'assets/silhouettes/bird.jpg',   fileB: 'assets/silhouettes/bird-a.png'  },
+    { name: 'crab',  fileA: 'assets/silhouettes/crab.jpg',   fileB: 'assets/silhouettes/crab-a.png'  },
+    { name: 'dog',   fileA: 'assets/silhouettes/dog.jpg',    fileB: 'assets/silhouettes/dog-a.png'   },
+    { name: 'choki', fileA: 'assets/silhouettes/choki.png',  fileB: 'assets/silhouettes/choki-a.png' },
   ];
   const result = {};
   await Promise.all(
@@ -266,9 +268,10 @@ function calcSilhouetteScore(binarizedPixels, templatePixelsA, templatePixelsB) 
  * @param {Array<Array<{x:number,y:number,z:number}>>|null} landmarks
  * @param {string} currentPose
  * @param {{vec:number[], rawKeyPoints:object[], hands?:number, vec2?:number[], rawKeyPoints2?:object[]}|null} [refData=null]
+ * @param {boolean} [useTM=true] false にすると TM を除外し骨格60%・シルエット40%で採点
  * @returns {Promise<number>} 0〜100（四捨五入済み）
  */
-async function getFinalScore(videoCanvas, landmarks, currentPose, refData = null) {
+async function getFinalScore(videoCanvas, landmarks, currentPose, refData = null, useTM = true) {
   // 手未検出は強制 0 点
   if (!landmarks || landmarks.length === 0) {
     _lastPredictions = [];
@@ -276,11 +279,16 @@ async function getFinalScore(videoCanvas, landmarks, currentPose, refData = null
     return 0;
   }
 
-  // a. Teachable Machine スコア
-  const preds = await getPredictions(videoCanvas);
-  _lastPredictions = preds;
-  const tmMatch = preds.find(p => p.className === currentPose);
-  const teachableMachineScore = tmMatch ? Math.round(tmMatch.probability * 100) : 0;
+  // a. Teachable Machine スコア（useTM=false 時はスキップ）
+  let teachableMachineScore = 0;
+  if (useTM) {
+    const preds = await getPredictions(videoCanvas);
+    _lastPredictions = preds;
+    const tmMatch = preds.find(p => p.className === currentPose);
+    teachableMachineScore = tmMatch ? Math.round(tmMatch.probability * 100) : 0;
+  } else {
+    _lastPredictions = [];
+  }
 
   // b. 骨格検出スコア（1手/2手・通常+ミラー反転の高い方を採用）
   let skeletonScore = 0;
@@ -318,16 +326,28 @@ async function getFinalScore(videoCanvas, landmarks, currentPose, refData = null
     }
   }
 
-  const finalScore = Math.round(
-    teachableMachineScore * 0.5 + skeletonScore * 0.3 + silhouetteScore * 0.2
-  );
-
-  console.log(
-    `[classifier] getFinalScore | pose=${currentPose}` +
-    ` | TM=${teachableMachineScore} skeleton=${skeletonScore}(+mirror)` +
-    ` silhouette=${Math.round(silhouetteScore)}(tpl:${usedTemplate})` +
-    ` | final=${finalScore}`
-  );
+  let finalScore;
+  if (useTM) {
+    // 通常: TM 50% + 骨格 30% + シルエット 20%
+    finalScore = Math.round(
+      teachableMachineScore * 0.5 + skeletonScore * 0.3 + silhouetteScore * 0.2
+    );
+    console.log(
+      `[classifier] getFinalScore | pose=${currentPose}` +
+      ` | TM=${teachableMachineScore} skeleton=${skeletonScore}(+mirror)` +
+      ` silhouette=${Math.round(silhouetteScore)}(tpl:${usedTemplate})` +
+      ` | final=${finalScore}`
+    );
+  } else {
+    // TM なし（チュートリアル用）: 骨格 60% + シルエット 40%
+    finalScore = Math.round(skeletonScore * 0.6 + silhouetteScore * 0.4);
+    console.log(
+      `[classifier] getFinalScore(noTM) | pose=${currentPose}` +
+      ` | skeleton=${skeletonScore}(+mirror)` +
+      ` silhouette=${Math.round(silhouetteScore)}(tpl:${usedTemplate})` +
+      ` | final=${finalScore}`
+    );
+  }
 
   return finalScore;
 }
