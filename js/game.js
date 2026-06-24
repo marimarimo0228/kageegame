@@ -162,6 +162,25 @@ async function loadTemplateImages() {
 // ─── ポーズごとのハードコードデフォルト骨格（全環境共通）─────────────
 
 const POSE_DEFAULT_REFS = {
+  // チョキ（人差指・中指を立てたVサイン）— 1手ポーズ
+  choki: {
+    hands: 1,
+    vec: [0,0,-0.162,-0.250,-0.237,-0.337,-0.187,-0.625,-0.312,-0.950,-0.087,-0.650,-0.125,-0.987,-0.012,-0.475,0,-0.400,0.062,-0.375,0.100,-0.312,-0.037,-0.362],
+    rawKeyPoints: [
+      {x:0.680, y:0.900},
+      {x:0.544, y:0.702},
+      {x:0.491, y:0.614},
+      {x:0.548, y:0.397},
+      {x:0.430, y:0.123},
+      {x:0.622, y:0.385},
+      {x:0.589, y:0.105},
+      {x:0.672, y:0.520},
+      {x:0.680, y:0.579},
+      {x:0.718, y:0.574},
+      {x:0.748, y:0.629},
+      {x:0.643, y:0.598},
+    ],
+  },
   dog: {
     hands: 1,
     vec: [0,0,-0.11244041172131175,-0.5084581982320397,-0.10035004486955788,-0.676169541104388,-0.5247219213661222,-0.41395418756587526,-0.7205858643645365,-0.5097892406357886,-0.6577159567354159,-0.37402291545341143,-0.8910600369742674,-0.4538854596783391,-0.715749717623835,-0.2515670143085221,-0.8838058168632151,-0.3287674737259524,-0.6057273792728739,-0.031945017689970996,-0.8209359092340945,0.021296678459980893,-0.2684061441089381,-0.18900802133232877],
@@ -444,11 +463,12 @@ async function runQuestion(qIdx, isTutorial = false) {
         }
       }
 
-      // 最終スコア更新（TM・骨格・シルエットの平均、手未検出時は 0、ノンブロッキング）
+      // 最終スコア更新（手未検出時は 0、ノンブロッキング）
+      // チュートリアルは骨格60%＋シルエット40%のみ（TM不使用）
       if (!scoringInProgress && poseData && cameraCanvas && cameraCanvas.width > 0) {
         scoringInProgress = true;
         window.ClassifierModule.getFinalScore(
-          cameraCanvas, lastLandmarks, poseData.name, refData
+          cameraCanvas, lastLandmarks, poseData.name, refData, !isTutorial
         )
           .then((score) => {
             scoringInProgress = false;
@@ -542,8 +562,9 @@ async function runQuestion(qIdx, isTutorial = false) {
 async function startTutorial() {
   if (allPoses.length === 0) await loadPoses();
 
-  // チュートリアルは固定で最初のポーズを1問だけ使用
-  questionOrder = [0];
+  // チュートリアルはチョキを固定使用（見つからない場合は先頭ポーズ）
+  const chokiIdx = allPoses.findIndex(p => p.name === 'choki');
+  questionOrder = [chokiIdx >= 0 ? chokiIdx : 0];
 
   ensureReferenceVecs();
   _ensureDetection();
