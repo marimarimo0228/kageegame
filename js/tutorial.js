@@ -23,10 +23,11 @@ const TutorialCharacter = {
 
   hide() {
     const slot = document.getElementById('tutorial-character-slot');
-    if (slot && !this.imageUrl) return;
     if (slot) slot.style.display = 'none';
   },
 };
+
+let _tutorialFallbackDone = false;
 
 // ─── ステップオーバーレイ ─────────────────────────────────
 
@@ -89,18 +90,23 @@ function hidePlayHint() {
 // ─── 初回チェック ─────────────────────────────────────────
 
 function isFirstPlay() {
-  try { return !localStorage.getItem(TUTORIAL_DONE_KEY); }
-  catch { return false; }
+  try {
+    return !localStorage.getItem(TUTORIAL_DONE_KEY);
+  }
+  catch {
+    // localStorage が使えない場合は初回プレイとみなす
+    return !_tutorialFallbackDone;
+  }
 }
 
 function markTutorialDone() {
   try { localStorage.setItem(TUTORIAL_DONE_KEY, '1'); }
-  catch {}
+  catch { _tutorialFallbackDone = true; }
 }
 
 function resetTutorial() {
   try { localStorage.removeItem(TUTORIAL_DONE_KEY); }
-  catch {}
+  catch { _tutorialFallbackDone = false; }
 }
 
 // ─── チュートリアル本体 ──────────────────────────────────
