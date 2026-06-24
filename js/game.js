@@ -108,11 +108,11 @@ function showScreen(id) {
   const target = document.getElementById(id);
   if (target) target.style.display = 'flex';
   
-  // キャンバスはすべての画面で非表示（チュートリアルが個別に表示制御）
+  // すべての画面でキャンバスとキャラ画像を非表示（チュートリアルが個別に表示制御）
   const canvasArt = document.getElementById('canvas-art');
-  if (canvasArt) {
-    canvasArt.style.display = 'none';
-  }
+  const titleCharacter = document.querySelector('.title-character');
+  if (canvasArt) canvasArt.style.display = 'none';
+  if (titleCharacter) titleCharacter.style.display = 'none';
 }
 
 function playBeep(freq = 880, duration = 0.12) {
@@ -309,9 +309,11 @@ function ensureReferenceVecs() {
  * ページ初期化時に呼び出す。poses.json を読み込み、参照骨格の抽出をバックグラウンドで開始。
  */
 async function initGame() {
-  // シルエットキャンバスを初期非表示（チュートリアル中のみ表示）
+  // シルエットキャンバスとキャラ画像を初期非表示（チュートリアル中のみ表示）
   const canvasArt = document.getElementById('canvas-art');
   if (canvasArt) canvasArt.style.display = 'none';
+  const titleCharacter = document.querySelector('.title-character');
+  if (titleCharacter) titleCharacter.style.display = 'none';
   
   await loadPoses();
   // モデル読み込みはバックグラウンドで開始（完了を待たずページ初期化を続行）

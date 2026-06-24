@@ -38,6 +38,7 @@ function showTutorialOverlay(title, message, buttonLabel = '次へ') {
     const msgEl   = document.getElementById('tutorial-message');
     const btnEl   = document.getElementById('tutorial-next-btn');
     const canvasArt = document.getElementById('canvas-art');
+    const titleCharacter = document.querySelector('.title-character');
 
     if (!overlay) { resolve(); return; }
 
@@ -46,14 +47,16 @@ function showTutorialOverlay(title, message, buttonLabel = '次へ') {
     if (btnEl)   btnEl.textContent   = buttonLabel;
 
     overlay.style.display = 'flex';
-    // チュートリアル中はシルエットキャンバスを表示
+    // チュートリアル中はシルエットキャンバスとキャラ画像を表示
     if (canvasArt) canvasArt.style.display = '';
+    if (titleCharacter) titleCharacter.style.display = '';
     TutorialCharacter.show();
 
     const advance = () => {
       overlay.style.display = 'none';
-      // チュートリアル終了時はシルエットキャンバスを非表示
+      // チュートリアル終了時はシルエットキャンバスとキャラ画像を非表示
       if (canvasArt) canvasArt.style.display = 'none';
+      if (titleCharacter) titleCharacter.style.display = 'none';
       TutorialCharacter.hide();
       if (btnEl) btnEl.onclick = null;
       resolve();
