@@ -2,7 +2,7 @@ const TUTORIAL_DONE_KEY = 'kagee_tutorial_done';
 
 const TutorialCharacter = {
   // チュートリアルキャラクター画像。assets/ に追加したJPEGを使います。
-  imageUrl: 'assets/tutorial-character.jpg',
+  imageUrl: 'assets/tutorial-character.png',
   name:     'チュートリアルキャラ',
 
   show() {
