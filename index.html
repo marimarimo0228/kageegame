@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0d1117">
+  <meta name="theme-color" content="#FDF6E3">
   <meta name="description" content="手のシルエットをポーズで採点するゲーム">
   <title>影絵採点ゲーム</title>
   <link rel="manifest" href="manifest.json">
@@ -32,6 +32,7 @@
     <!-- 中央: タイトル + スタートボタン -->
     <div class="title-center">
       <h1 class="game-title">影絵採点ゲーム</h1>
+      <p class="title-sub">手のかたちで影をつくろう！</p>
       <button id="btn-start" class="btn-primary"
               onclick="window.GameModule.startGame()">
         スタート
@@ -190,6 +191,12 @@
         <span class="result-total-label">平均スコア</span>
         <span id="result-total" class="result-total-value">0</span>
         <span class="result-total-unit">点</span>
+      </div>
+
+      <div id="result-stars" class="result-stars">
+        <span class="star" id="star-1">★</span>
+        <span class="star" id="star-2">★</span>
+        <span class="star" id="star-3">★</span>
       </div>
 
       <ol id="result-scores" class="result-scores-list"></ol>

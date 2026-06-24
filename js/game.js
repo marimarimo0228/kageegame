@@ -635,6 +635,18 @@ function showResult() {
 
   const rankEl = document.getElementById('result-rank');
   if (rankEl) rankEl.textContent = `${rank}位 / ${ranking.length}人中`;
+
+  const starEls = [
+    document.getElementById('star-1'),
+    document.getElementById('star-2'),
+    document.getElementById('star-3'),
+  ];
+  const litCount = avg >= 80 ? 3 : avg >= 50 ? 2 : avg >= 20 ? 1 : 0;
+  starEls.forEach((el, i) => {
+    if (!el) return;
+    el.classList.remove('lit');
+    setTimeout(() => { if (i < litCount) el.classList.add('lit'); }, 300 + i * 200);
+  });
 }
 
 async function showArtCanvas() {
