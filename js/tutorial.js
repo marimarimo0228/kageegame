@@ -1,16 +1,5 @@
-// js/tutorial.js — チュートリアル管理
-//
-// ■ キャラクターを後から挿入するには
-//   方法A（推奨）: JS から設定
-//     window.TutorialModule.TutorialCharacter.imageUrl = 'assets/guide.png';
-//     window.TutorialModule.TutorialCharacter.name     = 'キャラクター名';
-//   方法B: HTML の #tutorial-character-slot に直接 <img> などを追加
-
 const TUTORIAL_DONE_KEY = 'kagee_tutorial_done';
 
-// ─── キャラクタープラグイン ────────────────────────────────
-// imageUrl をセットするだけでキャラクターが表示されます。
-// show() / hide() をオーバーライドして独自ロジックを追加することもできます。
 const TutorialCharacter = {
   // チュートリアルキャラクター画像。assets/ に追加したJPEGを使います。
   imageUrl: 'assets/tutorial-character.jpg',
