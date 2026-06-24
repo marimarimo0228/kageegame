@@ -43,6 +43,12 @@
       </button>
     </div>
 
+    <!-- 右: チュートリアルキャラクター -->
+    <img src="assets/tutorial-character.png"
+         class="title-character"
+         alt="キャラクター"
+         aria-hidden="true">
+
     <!-- 左下: カメラプレビュー -->
     <video id="video-preview" autoplay muted playsinline
            aria-label="カメラプレビュー"></video>
@@ -69,12 +75,13 @@
   ══════════════════════════════════════════════ -->
   <section id="screen-play" style="display:none">
 
-    <!-- 上部: タイマーバー + 問題番号 -->
+    <!-- 上部: タイマーバー + 問題番号 + タイトルへ -->
     <div class="play-header">
       <div id="timer-bar-track">
         <div id="timer-bar"></div>
       </div>
       <span id="question-number">1 / 5</span>
+      <button class="btn-to-title" onclick="window.GameModule.goToTitle()">タイトルへ</button>
     </div>
 
     <!-- メインエリア: 左右分割 -->
@@ -211,6 +218,10 @@
         <button class="btn-secondary"
                 onclick="window.GameModule.showArtCanvas()">
           影を見る
+        </button>
+        <button class="btn-secondary"
+                onclick="window.GameModule.goToTitle()">
+          タイトルへ
         </button>
       </div>
 

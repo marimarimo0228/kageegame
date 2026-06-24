@@ -192,6 +192,20 @@ section[id^="screen-"] {
 .rank-score { color: var(--text); }
 .rank-empty { color: var(--text-dim); font-size: 0.78rem; }
 
+/* タイトル画面キャラクター（右側） */
+.title-character {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: clamp(200px, 48vh, 420px);
+  width: auto;
+  object-fit: contain;
+  object-position: bottom right;
+  pointer-events: none;
+  z-index: 1;
+  filter: drop-shadow(2px 4px 12px rgba(61, 43, 31, 0.18));
+}
+
 
 /* ══════════════════════════════════════════════════════
    カウントダウン画面  #screen-countdown
@@ -253,6 +267,25 @@ section[id^="screen-"] {
   background: linear-gradient(to right, #E8472A, #E8A020);
   border-radius: 4px;
   transition: background-color 0.3s ease;
+}
+
+/* ゲーム中タイトルへボタン */
+.btn-to-title {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.btn-to-title:hover {
+  color: #E8472A;
+  border-color: #E8472A;
 }
 
 #question-number {
@@ -326,8 +359,11 @@ section[id^="screen-"] {
   transform: translateX(-50%);
   font-size: clamp(2.2rem, 7vw, 5rem);
   font-weight: 900;
-  color: #3D2B1F;
-  text-shadow: 1px 2px 4px rgba(61, 43, 31, 0.25), 0 0 20px rgba(253, 246, 227, 0.9);
+  color: #E8472A;
+  text-shadow:
+    0 0 16px rgba(253, 246, 227, 1),
+    0 0 32px rgba(253, 246, 227, 0.8),
+    2px 3px 0 rgba(61, 43, 31, 0.25);
   pointer-events: none;
   letter-spacing: 0.04em;
   transition: color 0.15s;
@@ -854,8 +890,11 @@ section[id^="screen-"] {
   transform: translateX(-50%);
   font-size: clamp(2rem, 6vw, 4rem);
   font-weight: 900;
-  color: #3D2B1F;
-  text-shadow: 1px 2px 4px rgba(61, 43, 31, 0.2), 0 0 20px rgba(253, 246, 227, 0.9);
+  color: #E8472A;
+  text-shadow:
+    0 0 16px rgba(253, 246, 227, 1),
+    0 0 32px rgba(253, 246, 227, 0.8),
+    2px 3px 0 rgba(61, 43, 31, 0.2);
   pointer-events: none;
   letter-spacing: 0.04em;
   z-index: 10;
