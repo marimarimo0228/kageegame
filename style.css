@@ -1,17 +1,19 @@
 /* ══════════════════════════════════════════════════════
-   style.css  影絵採点ゲーム 全体スタイル
+   style.css  影絵採点ゲーム — 案C 絵本・紙芝居テーマ
 ══════════════════════════════════════════════════════ */
 
 /* ── CSS 変数 ──────────────────────────────────────── */
 :root {
-  --bg:            #0d1117;
-  --surface:       rgba(255, 255, 255, 0.04);
-  --border:        rgba(255, 255, 255, 0.08);
-  --accent-green:  #5DCAA5;
-  --accent-yellow: #EF9F27;
-  --accent-red:    #E24B4A;
-  --text:          #e6edf3;
-  --text-dim:      rgba(230, 237, 243, 0.45);
+  --bg:            #FDF6E3;
+  --surface:       rgba(139, 94, 60, 0.06);
+  --border:        rgba(139, 94, 60, 0.25);
+  --accent-green:  #E8472A;
+  --accent-yellow: #E8A020;
+  --accent-red:    #C0392B;
+  --text:          #3D2B1F;
+  --text-dim:      rgba(61, 43, 31, 0.5);
+  --paper:         #FDF6E3;
+  --ink:           #3D2B1F;
 }
 
 /* ── リセット・基本 ─────────────────────────────────── */
@@ -27,7 +29,7 @@ html, body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, sans-serif;
+  font-family: 'Hiragino Maru Gothic ProN', 'BIZ UDPGothic', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -39,7 +41,6 @@ section[id^="screen-"] {
   inset: 0;
   width: 100vw;
   height: 100vh;
-  /* display は game.js が flex / none で切り替える */
   align-items: center;
   justify-content: center;
   background: var(--bg);
@@ -47,35 +48,44 @@ section[id^="screen-"] {
 
 /* ── ボタン ─────────────────────────────────────────── */
 .btn-primary {
-  background: var(--accent-green);
-  color: #0d1117;
+  background: #E8472A;
+  color: #FDF6E3;
   border: none;
-  border-radius: 24px;
+  border-radius: 32px;
   padding: 12px 40px;
   font-size: 1.15rem;
   font-weight: 700;
   font-family: inherit;
   letter-spacing: 0.06em;
   cursor: pointer;
-  transition: opacity 0.18s, transform 0.1s;
+  box-shadow: 0 4px 0 #A8321E, 0 6px 12px rgba(232, 71, 42, 0.25);
+  transition: transform 0.1s, box-shadow 0.1s;
 }
-.btn-primary:hover  { opacity: 0.82; }
-.btn-primary:active { transform: scale(0.97); }
+.btn-primary:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #A8321E, 0 8px 16px rgba(232, 71, 42, 0.3);
+}
+.btn-primary:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #A8321E, 0 3px 8px rgba(232, 71, 42, 0.2);
+}
 
 .btn-secondary {
   background: transparent;
-  color: var(--accent-green);
-  border: 2px solid var(--accent-green);
-  border-radius: 24px;
+  color: #E8472A;
+  border: 2px solid #E8472A;
+  border-radius: 32px;
   padding: 12px 40px;
   font-size: 1rem;
   font-weight: 700;
   font-family: inherit;
   letter-spacing: 0.06em;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s, transform 0.1s;
+  box-shadow: 2px 3px 0 rgba(232, 71, 42, 0.2);
+  transition: background 0.15s, transform 0.1s;
 }
-.btn-secondary:hover  { background: var(--accent-green); color: #0d1117; }
+.btn-secondary:hover  { background: rgba(232, 71, 42, 0.08); color: #E8472A; }
 .btn-secondary:active { transform: scale(0.97); }
 
 
@@ -84,9 +94,10 @@ section[id^="screen-"] {
 ══════════════════════════════════════════════════════ */
 
 #screen-title {
-  display: flex;   /* 初期表示 */
+  display: flex;
   position: relative;
   overflow: hidden;
+  background: linear-gradient(180deg, #F5E6C8 0%, #FDF6E3 30%, #FDF6E3 70%, #F0DFC0 100%);
 }
 
 /* 背景キャンバス（蓄積アート、薄く） */
@@ -95,7 +106,7 @@ section[id^="screen-"] {
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.22;
+  opacity: 0.12;
   pointer-events: none;
 }
 
@@ -110,11 +121,25 @@ section[id^="screen-"] {
 }
 
 .game-title {
-  font-size: clamp(1.8rem, 6vw, 4rem);
+  font-size: clamp(2rem, 7vw, 4.5rem);
   font-weight: 900;
-  letter-spacing: 0.12em;
-  color: var(--text);
-  text-shadow: 0 0 40px rgba(93, 202, 165, 0.4);
+  letter-spacing: 0.18em;
+  color: #E8472A;
+  text-shadow: 2px 3px 0 rgba(61, 43, 31, 0.15);
+  animation: title-stamp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes title-stamp {
+  from { transform: scale(0.7) rotate(-2deg); opacity: 0; }
+  to   { transform: scale(1)   rotate(0deg);  opacity: 1; }
+}
+
+.title-sub {
+  font-size: clamp(0.75rem, 2vw, 1rem);
+  color: var(--accent-yellow);
+  letter-spacing: 0.2em;
+  margin-top: -1.2rem;
+  font-weight: 600;
 }
 
 /* カメラプレビュー（左下） */
@@ -125,9 +150,9 @@ section[id^="screen-"] {
   width: 80px;
   height: 56px;
   object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid rgba(93, 202, 165, 0.3);
-  opacity: 0.65;
+  border-radius: 8px;
+  border: 2px solid rgba(232, 71, 42, 0.4);
+  opacity: 0.75;
   z-index: 1;
   transform: scaleX(-1);
 }
@@ -145,7 +170,7 @@ section[id^="screen-"] {
 .ranking-label {
   font-size: 0.6rem;
   letter-spacing: 0.2em;
-  color: var(--accent-green);
+  color: #E8472A;
   margin-bottom: 0.4rem;
 }
 
@@ -163,9 +188,23 @@ section[id^="screen-"] {
   gap: 0.5rem;
 }
 
-.rank-num   { color: var(--accent-yellow); font-weight: 700; min-width: 1.2em; text-align: right; }
+.rank-num   { color: #E8A020; font-weight: 700; min-width: 1.2em; text-align: right; }
 .rank-score { color: var(--text); }
 .rank-empty { color: var(--text-dim); font-size: 0.78rem; }
+
+/* タイトル画面キャラクター（右側） */
+.title-character {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: clamp(200px, 48vh, 420px);
+  width: auto;
+  object-fit: contain;
+  object-position: bottom right;
+  pointer-events: none;
+  z-index: 1;
+  filter: drop-shadow(2px 4px 12px rgba(61, 43, 31, 0.18));
+}
 
 
 /* ══════════════════════════════════════════════════════
@@ -173,21 +212,21 @@ section[id^="screen-"] {
 ══════════════════════════════════════════════════════ */
 
 #screen-countdown {
-  /* display は game.js が制御 */
+  background: var(--bg);
 }
 
 #countdown-number {
   font-size: clamp(6rem, 22vw, 15rem);
   font-weight: 900;
-  color: var(--accent-green);
-  text-shadow: 0 0 80px rgba(93, 202, 165, 0.5);
+  color: #E8472A;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.15);
   line-height: 1;
-  animation: cd-pulse 0.65s ease-out;
+  animation: cd-ehon 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes cd-pulse {
-  from { transform: scale(1.5); opacity: 0.3; }
-  to   { transform: scale(1);   opacity: 1;   }
+@keyframes cd-ehon {
+  from { transform: scale(0.3) rotate(-8deg); opacity: 0; }
+  to   { transform: scale(1)   rotate(0deg);  opacity: 1; }
 }
 
 
@@ -201,7 +240,6 @@ section[id^="screen-"] {
   align-items: stretch;
   position: relative;
   padding: 0;
-  /* display: flex は game.js が設定 */
 }
 
 /* 上部ヘッダー */
@@ -210,15 +248,15 @@ section[id^="screen-"] {
   align-items: center;
   gap: 0.75rem;
   padding: 0.45rem 0.9rem;
-  background: rgba(255, 255, 255, 0.025);
-  border-bottom: 1px solid var(--border);
+  background: rgba(139, 94, 60, 0.05);
+  border-bottom: 1px dashed rgba(139, 94, 60, 0.3);
   flex-shrink: 0;
 }
 
 #timer-bar-track {
   flex: 1;
-  height: 7px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 8px;
+  background: rgba(139, 94, 60, 0.12);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -226,9 +264,28 @@ section[id^="screen-"] {
 #timer-bar {
   height: 100%;
   width: 100%;
-  background: var(--accent-green);
+  background: linear-gradient(to right, #E8472A, #E8A020);
   border-radius: 4px;
   transition: background-color 0.3s ease;
+}
+
+/* ゲーム中タイトルへボタン */
+.btn-to-title {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.btn-to-title:hover {
+  color: #E8472A;
+  border-color: #E8472A;
 }
 
 #question-number {
@@ -256,9 +313,9 @@ section[id^="screen-"] {
 }
 
 .play-left {
-  border-right: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.015);
-  padding: 1rem;
+  background: #F8F0DB;
+  border-right: 2px dashed rgba(139, 94, 60, 0.3);
+  padding: 1.2rem;
 }
 
 #canvas-question {
@@ -266,6 +323,11 @@ section[id^="screen-"] {
   max-height: 90%;
   display: block;
   opacity: 0.95;
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 3px #FDF6E3,
+    0 0 0 5px rgba(139, 94, 60, 0.25),
+    4px 6px 16px rgba(61, 43, 31, 0.15);
 }
 
 .play-right {
@@ -285,11 +347,11 @@ section[id^="screen-"] {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  transform: scaleX(-1); /* camera canvas と同じミラーを適用 */
+  transform: scaleX(-1);
   z-index: 5;
 }
 
-/* リアルタイムスコア（カメラ映像の下部中央に浮上） */
+/* リアルタイムスコア */
 #score-display {
   position: absolute;
   bottom: 1.4rem;
@@ -297,8 +359,11 @@ section[id^="screen-"] {
   transform: translateX(-50%);
   font-size: clamp(2.2rem, 7vw, 5rem);
   font-weight: 900;
-  color: var(--text);
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.9);
+  color: #E8472A;
+  text-shadow:
+    0 0 16px rgba(253, 246, 227, 1),
+    0 0 32px rgba(253, 246, 227, 0.8),
+    2px 3px 0 rgba(61, 43, 31, 0.25);
   pointer-events: none;
   letter-spacing: 0.04em;
   transition: color 0.15s;
@@ -335,7 +400,7 @@ section[id^="screen-"] {
 .prob-track {
   width: 72px;
   height: 5px;
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(61, 43, 31, 0.1);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -343,7 +408,7 @@ section[id^="screen-"] {
 .prob-fill {
   height: 100%;
   width: 0%;
-  background: var(--accent-green);
+  background: #E8472A;
   border-radius: 3px;
   transition: width 0.12s ease;
 }
@@ -360,15 +425,16 @@ section[id^="screen-"] {
 #flash-score {
   position: absolute;
   inset: 0;
-  /* display は game.js が flex / none で制御 */
   align-items: center;
   justify-content: center;
   font-size: clamp(5rem, 22vw, 14rem);
   font-weight: 900;
-  background: rgba(13, 17, 23, 0.78);
+  color: #E8472A;
+  background: rgba(253, 246, 227, 0.88);
   letter-spacing: 0.04em;
   z-index: 20;
   animation: flash-in 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.12);
 }
 
 @keyframes flash-in {
@@ -381,15 +447,15 @@ section[id^="screen-"] {
   position: absolute;
   top: 3.2rem;
   right: 1rem;
-  /* display は game.js が block / none で制御 */
-  background: var(--accent-yellow);
-  color: #0d1117;
+  background: #E8A020;
+  color: #FDF6E3;
   font-size: 0.78rem;
   font-weight: 900;
   letter-spacing: 0.14em;
   padding: 4px 14px;
   border-radius: 20px;
   z-index: 10;
+  box-shadow: 0 2px 0 #A86010;
   animation: pop-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -413,19 +479,20 @@ section[id^="screen-"] {
   align-items: center;
   gap: 1.4rem;
   padding: 2.4rem 3rem;
-  background: var(--surface);
-  border: 1px solid rgba(93, 202, 165, 0.2);
-  border-radius: 16px;
+  background: #FDF6E3;
+  border: 2px solid rgba(139, 94, 60, 0.25);
+  border-radius: 12px;
   min-width: 320px;
   max-width: 90vw;
   max-height: 92vh;
   overflow-y: auto;
+  box-shadow: 4px 6px 20px rgba(61, 43, 31, 0.12), 0 0 0 6px rgba(139, 94, 60, 0.06);
 }
 
 .result-heading {
   font-size: 0.9rem;
   letter-spacing: 0.4em;
-  color: var(--accent-green);
+  color: #E8472A;
 }
 
 .result-total-wrap {
@@ -440,8 +507,26 @@ section[id^="screen-"] {
 .result-total-value {
   font-size: clamp(3rem, 10vw, 5.5rem);
   font-weight: 900;
-  color: var(--accent-yellow);
+  color: #E8472A;
   line-height: 1;
+}
+
+/* 星評価 */
+.result-stars {
+  display: flex;
+  gap: 0.5rem;
+  font-size: clamp(2rem, 7vw, 3.5rem);
+}
+
+.star {
+  color: rgba(139, 94, 60, 0.2);
+  transition: color 0.4s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: inline-block;
+}
+
+.star.lit {
+  color: #E8A020;
+  transform: scale(1.15);
 }
 
 .result-scores-list {
@@ -459,7 +544,7 @@ section[id^="screen-"] {
   padding: 0.28rem 0.5rem;
   font-size: 0.88rem;
   color: var(--text-dim);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px dashed rgba(139, 94, 60, 0.2);
 }
 
 .result-rank {
@@ -482,7 +567,7 @@ section[id^="screen-"] {
 
 #screen-art {
   position: relative;
-  /* display は game.js が制御 */
+  background: var(--bg);
 }
 
 #canvas-art-full {
@@ -499,8 +584,8 @@ section[id^="screen-"] {
   transform: translateX(-50%);
   font-size: clamp(0.75rem, 2vw, 1rem);
   letter-spacing: 0.25em;
-  color: rgba(230, 237, 243, 0.55);
-  text-shadow: 0 0 24px rgba(0, 0, 0, 0.9);
+  color: rgba(61, 43, 31, 0.55);
+  text-shadow: 0 0 24px rgba(253, 246, 227, 0.9);
   white-space: nowrap;
   pointer-events: none;
   z-index: 1;
@@ -521,11 +606,11 @@ section[id^="screen-"] {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(13, 17, 23, 0.88);
+  background: rgba(253, 246, 227, 0.92);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 2rem 1.5rem;
+  padding: 2rem 2rem 2.5rem;
   gap: 1.5rem;
   animation: tut-fade-in 0.25s ease-out;
 }
@@ -535,47 +620,66 @@ section[id^="screen-"] {
   to   { opacity: 1; }
 }
 
-/* ── キャラクタースロット ────────────────────────────
-   ▼ キャラクター未設定時は非表示（display:none）
-   ▼ TutorialCharacter.imageUrl をセットすると flex に切り替わり表示される */
 .tut-char-slot {
   display: none;
   flex-shrink: 0;
   align-items: flex-end;
   justify-content: center;
-  width: 120px;
-  max-height: 220px;
+  width: 200px;
+  max-height: 420px;
 }
 
 .tut-char-img {
   max-width: 100%;
-  max-height: 220px;
+  max-height: 420px;
   object-fit: contain;
+  filter: drop-shadow(2px 4px 8px rgba(61, 43, 31, 0.2));
 }
 
-/* ── 吹き出し ────────────────────────────────────── */
+/* 吹き出し */
 .tut-speech-bubble {
-  background: rgba(13, 17, 23, 0.96);
-  border: 1.5px solid rgba(93, 202, 165, 0.4);
-  border-radius: 16px;
+  position: relative;
+  background: #FFF9F0;
+  border: 2px solid rgba(139, 94, 60, 0.3);
+  border-radius: 20px;
   padding: 1.8rem 2.2rem;
   max-width: 540px;
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  box-shadow: 3px 4px 0 rgba(139, 94, 60, 0.15);
+}
+
+/* 吹き出し三角（キャラ側） */
+.tut-speech-bubble::before {
+  content: '';
+  position: absolute;
+  left: -17px;
+  bottom: 40px;
+  border: 8px solid transparent;
+  border-right-color: rgba(139, 94, 60, 0.3);
+}
+
+.tut-speech-bubble::after {
+  content: '';
+  position: absolute;
+  left: -13px;
+  bottom: 42px;
+  border: 7px solid transparent;
+  border-right-color: #FFF9F0;
 }
 
 .tut-title {
   font-size: clamp(1.1rem, 3.5vw, 1.5rem);
   font-weight: 800;
-  color: var(--accent-green);
+  color: #E8472A;
   letter-spacing: 0.06em;
 }
 
 .tut-message {
   font-size: clamp(0.85rem, 2.2vw, 1rem);
-  color: var(--text);
+  color: #3D2B1F;
   line-height: 1.85;
   white-space: pre-line;
 }
@@ -585,25 +689,26 @@ section[id^="screen-"] {
   margin-top: 0.4rem;
 }
 
-/* ── インゲームヒント ────────────────────────────── */
+/* インゲームヒント */
 #tutorial-play-hint {
   position: fixed;
   bottom: 5.5rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 50;
-  background: rgba(13, 17, 23, 0.88);
-  border: 1px solid rgba(93, 202, 165, 0.45);
-  border-radius: 8px;
+  background: #FFF9F0;
+  border: 2px solid rgba(139, 94, 60, 0.3);
+  border-radius: 12px;
   padding: 0.6rem 1.5rem;
   font-size: clamp(0.82rem, 2.5vw, 1rem);
-  color: var(--text);
+  color: #3D2B1F;
   pointer-events: none;
   white-space: nowrap;
   opacity: 0;
   transition: opacity 0.35s ease;
   letter-spacing: 0.05em;
   text-align: center;
+  box-shadow: 2px 3px 0 rgba(139, 94, 60, 0.15);
 }
 
 #tutorial-play-hint.visible {
@@ -633,8 +738,8 @@ section[id^="screen-"] {
   align-items: center;
   gap: 1rem;
   padding: 0.55rem 1rem;
-  border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.025);
+  border-bottom: 1px dashed rgba(139, 94, 60, 0.3);
+  background: rgba(139, 94, 60, 0.04);
   flex-shrink: 0;
   flex-wrap: wrap;
 }
@@ -663,8 +768,8 @@ section[id^="screen-"] {
   cursor: pointer;
   transition: all 0.15s;
 }
-.calib-tab:hover  { color: var(--text); border-color: var(--accent-green); }
-.calib-tab.active { background: var(--accent-green); color: #0d1117; border-color: var(--accent-green); }
+.calib-tab:hover  { color: var(--text); border-color: #E8472A; }
+.calib-tab.active { background: #E8472A; color: #FDF6E3; border-color: #E8472A; }
 
 .calib-hand-toggle {
   display: flex;
@@ -692,8 +797,8 @@ section[id^="screen-"] {
   cursor: pointer;
   transition: all 0.15s;
 }
-.calib-hand-btn:hover  { color: var(--text); border-color: var(--accent-green); }
-.calib-hand-btn.active { background: var(--accent-green); color: #0d1117; border-color: var(--accent-green); }
+.calib-hand-btn:hover  { color: var(--text); border-color: #E8472A; }
+.calib-hand-btn.active { background: #E8472A; color: #FDF6E3; border-color: #E8472A; }
 
 .calib-main {
   flex: 1;
@@ -704,8 +809,8 @@ section[id^="screen-"] {
 .calib-left {
   flex: 1;
   position: relative;
-  border-right: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.015);
+  border-right: 2px dashed rgba(139, 94, 60, 0.3);
+  background: #F8F0DB;
   overflow: hidden;
 }
 
@@ -715,7 +820,7 @@ section[id^="screen-"] {
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
-  background: rgba(13, 17, 23, 0.78);
+  background: rgba(253, 246, 227, 0.88);
   padding: 3px 10px;
   border-radius: 4px;
   font-size: 0.68rem;
@@ -760,8 +865,8 @@ section[id^="screen-"] {
   align-items: center;
   gap: 0.8rem;
   padding: 0.6rem 1.1rem;
-  border-top: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.025);
+  border-top: 1px dashed rgba(139, 94, 60, 0.3);
+  background: rgba(139, 94, 60, 0.04);
   flex-shrink: 0;
 }
 
@@ -775,6 +880,7 @@ section[id^="screen-"] {
   font-size: 0.82rem;
   letter-spacing: 0.05em;
   min-height: 1em;
+  color: var(--text-dim);
 }
 
 #calib-score {
@@ -784,8 +890,11 @@ section[id^="screen-"] {
   transform: translateX(-50%);
   font-size: clamp(2rem, 6vw, 4rem);
   font-weight: 900;
-  color: var(--text);
-  text-shadow: 0 2px 20px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.8);
+  color: #E8472A;
+  text-shadow:
+    0 0 16px rgba(253, 246, 227, 1),
+    0 0 32px rgba(253, 246, 227, 0.8),
+    2px 3px 0 rgba(61, 43, 31, 0.2);
   pointer-events: none;
   letter-spacing: 0.04em;
   z-index: 10;

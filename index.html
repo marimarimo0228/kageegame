@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0d1117">
+  <meta name="theme-color" content="#FDF6E3">
   <meta name="description" content="手のシルエットをポーズで採点するゲーム">
   <title>影絵採点ゲーム</title>
   <link rel="manifest" href="manifest.json">
@@ -32,6 +32,7 @@
     <!-- 中央: タイトル + スタートボタン -->
     <div class="title-center">
       <h1 class="game-title">影絵採点ゲーム</h1>
+      <p class="title-sub">手のかたちで影をつくろう！</p>
       <button id="btn-start" class="btn-primary"
               onclick="window.GameModule.startGame()">
         スタート
@@ -41,6 +42,12 @@
         骨格調整
       </button>
     </div>
+
+    <!-- 右: チュートリアルキャラクター -->
+    <img src="assets/tutorial-character.png"
+         class="title-character"
+         alt="キャラクター"
+         aria-hidden="true">
 
     <!-- 左下: カメラプレビュー -->
     <video id="video-preview" autoplay muted playsinline
@@ -68,12 +75,13 @@
   ══════════════════════════════════════════════ -->
   <section id="screen-play" style="display:none">
 
-    <!-- 上部: タイマーバー + 問題番号 -->
+    <!-- 上部: タイマーバー + 問題番号 + タイトルへ -->
     <div class="play-header">
       <div id="timer-bar-track">
         <div id="timer-bar"></div>
       </div>
       <span id="question-number">1 / 5</span>
+      <button class="btn-to-title" onclick="window.GameModule.goToTitle()">タイトルへ</button>
     </div>
 
     <!-- メインエリア: 左右分割 -->
@@ -138,6 +146,8 @@
                   onclick="window.GameModule.calibSelectPose('bird')">ハト</button>
           <button class="calib-tab" data-pose="crab"
                   onclick="window.GameModule.calibSelectPose('crab')">カニ</button>
+          <button class="calib-tab" data-pose="choki"
+                  onclick="window.GameModule.calibSelectPose('choki')">チョキ</button>
         </div>
         <div class="calib-hand-toggle">
           <span class="calib-hand-label">手の数:</span>
@@ -190,6 +200,12 @@
         <span class="result-total-unit">点</span>
       </div>
 
+      <div id="result-stars" class="result-stars">
+        <span class="star" id="star-1">★</span>
+        <span class="star" id="star-2">★</span>
+        <span class="star" id="star-3">★</span>
+      </div>
+
       <ol id="result-scores" class="result-scores-list"></ol>
 
       <p id="result-rank" class="result-rank">-- 位</p>
@@ -202,6 +218,10 @@
         <button class="btn-secondary"
                 onclick="window.GameModule.showArtCanvas()">
           影を見る
+        </button>
+        <button class="btn-secondary"
+                onclick="window.GameModule.goToTitle()">
+          タイトルへ
         </button>
       </div>
 
