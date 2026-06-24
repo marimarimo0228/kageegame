@@ -614,7 +614,8 @@ async function startGame() {
 
   if (allPoses.length === 0) await loadPoses();
 
-  questionOrder = sampleIndices(allPoses.length, QUESTION_COUNT);
+  const playableIdx = allPoses.map((p, i) => i).filter(i => !allPoses[i].tutorialOnly);
+  questionOrder = sampleIndices(playableIdx.length, QUESTION_COUNT).map(i => playableIdx[i]);
 
   // 骨格抽出はバックグラウンドで実行（完了を待たずゲーム進行）
   ensureReferenceVecs();
