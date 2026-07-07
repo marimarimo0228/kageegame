@@ -49,50 +49,75 @@ const KEY_CONNECTIONS = [
 ];
 
 /**
- * お題画像を canvas に描画し、参照骨格ポイントをオーバーレイ表示する。
+ * 一致度スコア(0〜100)を赤(不一致)→黄→緑(一致)のグラデーション色に変換する。
+ */
+function scoreToPointColor(score) {
+  const s = Math.max(0, Math.min(100, score));
+  let r, g;
+  if (s < 50) { r = 255; g = Math.round(255 * (s / 50)); }
+  else        { r = Math.round(255 * (1 - (s - 50) / 50)); g = 255; }
+  return `rgb(${r}, ${g}, 70)`;
+}
+
+/**
+ * 読み込み済みのお題画像 + 参照骨格ポイントを canvas に描画する。
+ * pointScores を渡すと、各ポイントの色をお手本との一致度に応じて変化させる
+ * （毎フレーム呼び出してリアルタイムフィードバックとして使う想定）。
+ */
+function drawQuestionDots(canvas, img, rawKeyPoints, pointScores) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.drawImage(img, 0, 0, w, h);
+  if (!rawKeyPoints || rawKeyPoints.length === 0) return;
+
+  const base = Math.min(w, h); // ドットサイズの基準
+
+  // 接続線
+  ctx.lineWidth   = base * 0.006;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+  for (const [a, b] of KEY_CONNECTIONS) {
+    const pa = rawKeyPoints[a];
+    const pb = rawKeyPoints[b];
+    ctx.beginPath();
+    ctx.moveTo(pa.x * w, pa.y * h);
+    ctx.lineTo(pb.x * w, pb.y * h);
+    ctx.stroke();
+  }
+
+  // 採点ポイントのドット
+  rawKeyPoints.forEach((pt, i) => {
+    const style = POINT_STYLES[i];
+    if (!style) return;
+    const x = pt.x * w;
+    const y = pt.y * h;
+    const r = style.r * base;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = pointScores ? scoreToPointColor(pointScores[i]) : style.color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.lineWidth   = base * 0.003;
+    ctx.stroke();
+  });
+}
+
+/**
+ * お題画像を読み込み、canvas に描画する。読み込んだ Image を resolve する
+ * （毎フレームの再描画で使い回すため）。
  */
 function drawQuestionCanvas(canvas, imageSrc, rawKeyPoints) {
-  const ctx = canvas.getContext('2d');
-  const img = new Image();
-  img.onload = () => {
-    canvas.width  = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    ctx.drawImage(img, 0, 0);
-    if (!rawKeyPoints || rawKeyPoints.length === 0) return;
-
-    const w = canvas.width;
-    const h = canvas.height;
-    const base = Math.min(w, h); // ドットサイズの基準
-
-    // 接続線
-    ctx.lineWidth   = base * 0.006;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-    for (const [a, b] of KEY_CONNECTIONS) {
-      const pa = rawKeyPoints[a];
-      const pb = rawKeyPoints[b];
-      ctx.beginPath();
-      ctx.moveTo(pa.x * w, pa.y * h);
-      ctx.lineTo(pb.x * w, pb.y * h);
-      ctx.stroke();
-    }
-
-    // 採点ポイントのドット
-    rawKeyPoints.forEach((pt, i) => {
-      const style = POINT_STYLES[i];
-      if (!style) return;
-      const x = pt.x * w;
-      const y = pt.y * h;
-      const r = style.r * base;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = style.color;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
-      ctx.lineWidth   = base * 0.003;
-      ctx.stroke();
-    });
-  };
-  img.src = imageSrc;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      drawQuestionDots(canvas, img, rawKeyPoints, null);
+      resolve(img);
+    };
+    img.onerror = () => resolve(null);
+    img.src = imageSrc;
+  });
 }
 
 // ─── ユーティリティ ───────────────────────────────────────────
@@ -350,12 +375,30 @@ function setNewBestVisible(visible) {
   if (el) el.style.display = visible ? 'block' : 'none';
 }
 
+// class を再トリガーするための共通ヘルパー（同じ class を連続適用してもアニメーションが再生されるようにする）
+function _retriggerClass(el, className) {
+  if (!el) return;
+  el.classList.remove(className);
+  void el.offsetWidth; // reflow を強制してアニメーションをリセット
+  el.classList.add(className);
+}
+
 async function flashBestScore(score) {
   const el = document.getElementById('flash-score');
   if (!el) { await wait(FLASH_DURATION); return; }
   el.textContent  = String(score);
   el.style.color   = score >= 80 ? '#EF9F27' : '#FFFFFF';
   el.style.display = 'flex';
+  _retriggerClass(el, 'score-pop');
+
+  // 高得点時ほど手応えのある演出（画面フラッシュ + 揺れ）を重ねる
+  if (score >= 60) {
+    _retriggerClass(document.getElementById('score-flash-overlay'), 'flash-active');
+  }
+  if (score >= 80) {
+    _retriggerClass(document.getElementById('screen-play'), 'screen-shake');
+  }
+
   await wait(FLASH_DURATION);
   el.style.display = 'none';
 }
@@ -384,10 +427,12 @@ async function runQuestion(qIdx, isTutorial = false) {
   let bestLandmarks     = null;
   let lastLandmarks     = null;
   let lastTMScore       = 0;
+  let lastPointScores   = null; // 部位別一致度（お題キャンバスのドット色分け用）
   let questionActive    = true;
   let scoringInProgress = false;
   let newBestTimer      = null;
   let newBestActive     = false;
+  let questionImg       = null; // 読み込み済みお題画像（毎フレーム再描画で使い回す）
 
   const qNumEl    = document.getElementById('question-number');
   const qCanvas   = document.getElementById('canvas-question');
@@ -397,13 +442,16 @@ async function runQuestion(qIdx, isTutorial = false) {
       qCanvas,
       `assets/silhouettes/${poseData.answerImage ?? poseData.image}`,
       refData?.rawKeyPoints ?? null
-    );
+    ).then((img) => { questionImg = img; });
   }
 
   const timerBar      = document.getElementById('timer-bar');
+  const timerVignette = document.getElementById('timer-vignette');
   const scoreDisplay  = document.getElementById('score-display');
   const cameraCanvas  = document.getElementById('canvas-camera');
   const overlayCanvas = document.getElementById('canvas-overlay');
+
+  if (timerVignette) timerVignette.classList.remove('active');
 
   // showScreen() で play 画面が表示された後に canvas 解像度を設定する。
   // 初期化時は screen-play が display:none のため clientWidth=0 になっており、
@@ -471,9 +519,18 @@ async function runQuestion(qIdx, isTutorial = false) {
           const beepSec = Math.ceil(remaining / 1000);
           if (beepSec !== lastBeepSec && beepSec >= 1 && beepSec <= 3) {
             lastBeepSec = beepSec;
-            playBeep(660, 0.14);
+            // 残り秒数が少ないほど高い音で緊張感を演出（3秒:660Hz → 1秒:820Hz）
+            playBeep(660 + (3 - beepSec) * 80, 0.14);
           }
+          if (timerVignette) timerVignette.classList.add('active');
+        } else if (timerVignette) {
+          timerVignette.classList.remove('active');
         }
+      }
+
+      // お題キャンバスを毎フレーム再描画（部位別一致度の色分けをリアルタイム反映）
+      if (qCanvas && questionImg) {
+        drawQuestionDots(qCanvas, questionImg, refData?.rawKeyPoints ?? null, lastPointScores);
       }
 
       // 最終スコア更新（手未検出時は 0、ノンブロッキング）
@@ -494,6 +551,11 @@ async function runQuestion(qIdx, isTutorial = false) {
             if (scoreDisplay) {
               scoreDisplay.textContent = String(score);
               scoreDisplay.style.color = score >= 80 ? '#EF9F27' : '';
+            }
+
+            // 部位別一致度を更新（お題キャンバスのドット色分け用）
+            if (refData?.vec && lastLandmarks?.[0] && window.PoseExtractorModule) {
+              lastPointScores = window.PoseExtractorModule.calcPointScoresBest(lastLandmarks[0], refData.vec);
             }
 
             if (score > bestScore) {
@@ -538,6 +600,7 @@ async function runQuestion(qIdx, isTutorial = false) {
 
   currentDetectionCb = null;
   questionActive = false;
+  if (timerVignette) timerVignette.classList.remove('active');
   if (window.EffectsModule && overlayCtx && overlayCanvas) {
     window.EffectsModule.clearEffects(overlayCtx, overlayCanvas.width, overlayCanvas.height);
   }
@@ -669,6 +732,20 @@ function showResult() {
     el.classList.remove('lit');
     setTimeout(() => { if (i < litCount) el.classList.add('lit'); }, 300 + i * 200);
   });
+
+  // 全問80点以上ならパーフェクトコンボ演出（紙吹雪 + バナー + ファンファーレ）
+  const banner   = document.getElementById('perfect-combo-banner');
+  const fxCanvas = document.getElementById('canvas-combo-fx');
+  const isPerfect = scores.length === QUESTION_COUNT && scores.every((s) => s >= 80);
+  if (isPerfect && banner && fxCanvas && window.EffectsModule) {
+    banner.style.display = 'flex';
+    _retriggerClass(banner, 'combo-pop');
+    window.EffectsModule.playPerfectCombo(fxCanvas).then(() => {
+      banner.style.display = 'none';
+    });
+  } else if (banner) {
+    banner.style.display = 'none';
+  }
 }
 
 async function showArtCanvas() {

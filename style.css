@@ -433,13 +433,71 @@ section[id^="screen-"] {
   background: rgba(253, 246, 227, 0.88);
   letter-spacing: 0.04em;
   z-index: 20;
-  animation: flash-in 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
   text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.12);
 }
 
-@keyframes flash-in {
-  from { opacity: 0; transform: scale(0.65); }
-  to   { opacity: 1; transform: scale(1);    }
+/* ベストスコア更新時のポップ演出（JS が毎回 class を re-trigger する） */
+#flash-score.score-pop {
+  animation: score-pop-anim 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes score-pop-anim {
+  0%   { opacity: 0; transform: scale(0.5); }
+  50%  { opacity: 1; transform: scale(1.18); }
+  75%  { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
+/* スコア確定時の画面フラッシュ（60点以上で発火） */
+#score-flash-overlay {
+  position: absolute;
+  inset: 0;
+  background: #FFFFFF;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+#score-flash-overlay.flash-active {
+  animation: score-flash-anim 0.5s ease-out;
+}
+
+@keyframes score-flash-anim {
+  0%   { opacity: 0.65; }
+  100% { opacity: 0; }
+}
+
+/* スコア確定時の画面揺れ（80点以上で発火） */
+#screen-play.screen-shake {
+  animation: shake-anim 0.35s ease-in-out;
+}
+
+@keyframes shake-anim {
+  0%   { transform: translate(0, 0); }
+  20%  { transform: translate(-6px, 3px); }
+  40%  { transform: translate(6px, -3px); }
+  60%  { transform: translate(-4px, 2px); }
+  80%  { transform: translate(4px, -2px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* 残り3秒の緊張感演出（赤いビネットが脈打つ） */
+#timer-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+  opacity: 0;
+}
+
+#timer-vignette.active {
+  opacity: 1;
+  animation: vignette-pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes vignette-pulse {
+  0%, 100% { box-shadow: inset 0 0 60px 10px rgba(224, 60, 60, 0.35); }
+  50%      { box-shadow: inset 0 0 100px 25px rgba(224, 60, 60, 0.6); }
 }
 
 /* NEW BEST! ラベル（右上） */
@@ -471,6 +529,42 @@ section[id^="screen-"] {
 
 #screen-result {
   /* display は game.js が制御 */
+  position: relative;
+}
+
+/* パーフェクトコンボ演出（全問80点以上のときのみ表示） */
+#canvas-combo-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+#perfect-combo-banner {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  font-size: clamp(1.6rem, 6vw, 3.2rem);
+  font-weight: 900;
+  color: #E8472A;
+  letter-spacing: 0.08em;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.15);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#perfect-combo-banner.combo-pop {
+  animation: combo-pop-anim 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes combo-pop-anim {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.4) rotate(-6deg); }
+  60%  { opacity: 1; transform: translateX(-50%) scale(1.15) rotate(2deg); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1)    rotate(0deg); }
 }
 
 .result-card {

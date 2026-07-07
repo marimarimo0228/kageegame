@@ -126,6 +126,12 @@
     <!-- 右上: NEW BEST! ラベル -->
     <div id="new-best-label" style="display:none" aria-live="polite">NEW BEST!</div>
 
+    <!-- スコア確定時の画面フラッシュ演出 -->
+    <div id="score-flash-overlay" aria-hidden="true"></div>
+
+    <!-- 残り時間わずかの緊張感演出（赤いビネット） -->
+    <div id="timer-vignette" aria-hidden="true"></div>
+
   </section>
 
 
@@ -190,6 +196,11 @@
        #screen-result  結果画面
   ══════════════════════════════════════════════ -->
   <section id="screen-result" style="display:none">
+
+    <!-- パーフェクトコンボ演出（全問80点以上の場合のみ表示） -->
+    <canvas id="canvas-combo-fx" aria-hidden="true"></canvas>
+    <div id="perfect-combo-banner" style="display:none" aria-hidden="true">PERFECT COMBO!</div>
+
     <div class="result-card">
 
       <h2 class="result-heading">RESULT</h2>
@@ -315,6 +326,9 @@
 
         const artFull = document.getElementById('canvas-art-full');
         if (artFull) { artFull.width = window.innerWidth; artFull.height = window.innerHeight; }
+
+        const comboFx = document.getElementById('canvas-combo-fx');
+        if (comboFx) { comboFx.width = window.innerWidth; comboFx.height = window.innerHeight; }
 
         const cam = document.getElementById('canvas-camera');
         if (cam) {
