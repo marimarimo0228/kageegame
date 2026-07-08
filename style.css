@@ -121,6 +121,11 @@ section[id^="screen-"] {
 }
 
 .game-title {
+  width: min(72vw, 520px);
+  height: auto;
+  max-height: 22vh;
+  object-fit: contain;
+  display: block;
   font-size: clamp(2rem, 7vw, 4.5rem);
   font-weight: 900;
   letter-spacing: 0.18em;
