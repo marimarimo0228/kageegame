@@ -4,7 +4,6 @@
 let audioCtx   = null;
 let lastTier   = 0;
 let spawnTimer = 0;
-let flashAlpha = 0; // スコア段位が上がった瞬間の画面フラッシュ（0〜1）
 
 // パーティクル配列
 let dogTexts     = [];
@@ -22,9 +21,9 @@ function getScoreTier(score) {
 
 // 段位ごとのパーティクル上限・生成間隔（フレーム数）
 const TIER_PARAM = {
-  1: { maxDog: 2, maxBird: 8,  maxCrab: 6,  spawnEvery: 8 },
-  2: { maxDog: 3, maxBird: 16, maxCrab: 12, spawnEvery: 5 },
-  3: { maxDog: 4, maxBird: 26, maxCrab: 20, spawnEvery: 3 },
+  1: { maxDog: 2, maxBird: 4,  maxCrab: 6,  spawnEvery: 8 },
+  2: { maxDog: 3, maxBird: 8,  maxCrab: 12, spawnEvery: 5 },
+  3: { maxDog: 4, maxBird: 13, maxCrab: 20, spawnEvery: 3 },
 };
 
 // ─── 初期化 ──────────────────────────────────────────────────
@@ -35,7 +34,6 @@ function initEffects(_canvas) {
   crabBubbles  = [];
   lastTier     = 0;
   spawnTimer   = 0;
-  flashAlpha   = 0;
 }
 
 // ─── 音声生成 ─────────────────────────────────────────────────
@@ -108,6 +106,27 @@ function playEffectSound(pose, tier = 1) {
   } catch (_) {}
 }
 
+// ─── 音声ファイル再生（80点超え専用の差し替えサウンド）───────────────
+
+const _effectsAudioFileCache = {};
+function playEffectsSoundFile(path, volume = 1) {
+  try {
+    let audio = _effectsAudioFileCache[path];
+    if (!audio) {
+      audio = new Audio(path);
+      _effectsAudioFileCache[path] = audio;
+    }
+    audio.currentTime = 0;
+    audio.volume = volume;
+    audio.play().catch(() => {});
+  } catch (_) {}
+}
+
+// pose (dog|bird|crab) が80点を超えた瞬間に鳴らす専用サウンド
+function playGreatSound(pose) {
+  playEffectsSoundFile(`assets/sounds/great-${pose}.mp3`);
+}
+
 // パーフェクトコンボ達成時のファンファーレ（上昇アルペジオ）
 function playPerfectComboSound() {
   try {
@@ -131,15 +150,21 @@ function playPerfectComboSound() {
 
 // ─── パーティクル生成 ─────────────────────────────────────────
 
-function spawnDogText(lm, canvasW, canvasH, maxCount = 3) {
+// visualDir: 1 = 画面上で右向き, -1 = 画面上で左向き
+// 描画側は座標系がミラーされている（drawDogTexts 参照）ため、
+// 画面上で右に動かすには raw 座標の x を減らす（負の vx）必要がある。
+function spawnDogText(lm, canvasW, canvasH, maxCount = 3, visualDir = 1) {
   if (dogTexts.length >= maxCount) return;
+  // 口(中央付近)から画面の縁近くまでを 0.5秒(≒30フレーム@60fps)で移動する速度
+  const speed = (canvasW * 0.42) / 30;
   dogTexts.push({
     x:       lm.x * canvasW,
     y:       lm.y * canvasH,
+    vx:      -visualDir * speed,
     vy:      -1.3,
     alpha:   1.0,
     life:    0,
-    maxLife: 72,
+    maxLife: 30,
   });
 }
 
@@ -150,7 +175,7 @@ function spawnBirdFeather(lm, canvasW, canvasH, maxCount = 20) {
     x:       lm.x * canvasW + (Math.random() - 0.5) * 50,
     y:       lm.y * canvasH + (Math.random() - 0.5) * 30,
     vx:      side * (3 + Math.random() * 5),    // 横方向に強く飛び散る
-    vy:      (Math.random() - 0.5) * 1.5,       // 縦方向は弱め
+    vy:      -(2 + Math.random() * 1.5),        // 飛び散った一瞬だけ上に跳ねる
     angle:   Math.random() * Math.PI * 2,
     angVel:  (Math.random() - 0.5) * 0.22,
     phase:   Math.random() * Math.PI * 2,
@@ -162,10 +187,10 @@ function spawnBirdFeather(lm, canvasW, canvasH, maxCount = 20) {
 function spawnCrabBubble(lm, canvasW, canvasH, maxCount = 15) {
   if (crabBubbles.length >= maxCount) return;
   crabBubbles.push({
-    x:       lm.x * canvasW + (Math.random() - 0.5) * 32,
+    x:       lm.x * canvasW + (Math.random() - 0.5) * 64,
     y:       lm.y * canvasH,
-    vy:      -(0.4 + Math.random() * 0.9),
-    r:       2 + Math.random() * 4,
+    vy:      -(1.2 + Math.random() * 2.7),   // 動きを大きく（旧の約3倍）
+    r:       8 + Math.random() * 16,         // サイズ約4倍（旧: 2〜6 → 8〜24）
     life:    0,
     maxLife: 100 + Math.random() * 40,
   });
@@ -175,6 +200,7 @@ function spawnCrabBubble(lm, canvasW, canvasH, maxCount = 15) {
 
 function updateParticles() {
   dogTexts = dogTexts.filter((p) => {
+    p.x    += p.vx;
     p.y    += p.vy;
     p.life += 1;
     p.alpha = Math.max(0, 1 - p.life / p.maxLife);
@@ -184,6 +210,7 @@ function updateParticles() {
   birdFeathers = birdFeathers.filter((p) => {
     p.phase += 0.15;
     p.vx    *= 0.96;                            // 空気抵抗で横速度を徐々に減衰
+    p.vy    += 0.22;                            // 重力で上昇→落下に転じる（落下を速く）
     p.x     += p.vx;
     p.y     += p.vy + Math.sin(p.phase) * 0.4; // ひらひら縦揺れ
     p.angle += p.angVel;
@@ -192,7 +219,7 @@ function updateParticles() {
   });
 
   crabBubbles = crabBubbles.filter((p) => {
-    p.x   += Math.sin(p.life * 0.10) * 0.4;  // 小さな蛇行
+    p.x   += Math.sin(p.life * 0.08) * 1.2;  // 蛇行を大きく
     p.y   += p.vy;
     p.life += 1;
     return p.life < p.maxLife;
@@ -206,22 +233,6 @@ function clearParticles() {
   spawnTimer   = 0;
 }
 
-// ─── 画面フラッシュ（段位アップ時の"決まった"演出）────────────────
-
-function triggerFlash() {
-  flashAlpha = 1;
-}
-
-function drawFlash(ctx, canvasW, canvasH) {
-  if (flashAlpha <= 0) return;
-  ctx.save();
-  ctx.globalAlpha = flashAlpha * 0.55;
-  ctx.fillStyle   = '#FFFFFF';
-  ctx.fillRect(0, 0, canvasW, canvasH);
-  ctx.restore();
-  flashAlpha = Math.max(0, flashAlpha - 0.09);
-}
-
 // ─── 描画 ────────────────────────────────────────────────────
 
 function drawDogTexts(ctx) {
@@ -230,7 +241,7 @@ function drawDogTexts(ctx) {
   ctx.scale(-1, 1);
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font         = 'bold 28px system-ui, sans-serif';
+  ctx.font         = 'bold 44px system-ui, sans-serif';
   ctx.lineJoin     = 'round';
   for (const p of dogTexts) {
     ctx.globalAlpha  = p.alpha;
@@ -254,7 +265,7 @@ function drawBirdFeathers(ctx) {
     // ひらひら感を演出（最小幅 0.3 を確保して消えすぎを防ぐ）
     ctx.scale(Math.abs(Math.sin(p.phase)) + 0.3, 1);
     ctx.beginPath();
-    ctx.ellipse(0, 0, 20, 9, 0, 0, Math.PI * 2);  // 大きな羽（旧: 8×4）
+    ctx.ellipse(0, 0, 40, 18, 0, 0, Math.PI * 2);  // 羽サイズ2倍（旧: 20×9）
     ctx.fillStyle    = '#FFFFFF';
     ctx.fill();
     ctx.strokeStyle  = 'rgba(180, 210, 255, 0.55)';
@@ -287,38 +298,48 @@ function drawCrabBubbles(ctx) {
  * 毎フレーム呼び出す。スコアに応じてエフェクトを更新・描画する。
  * @param {string} pose        現在のお題ポーズ名 ("dog"|"bird"|"crab")
  * @param {number} score       現在のスコア (0〜100)
- * @param {object|null} landmarks  MediaPipe の21点配列 (landmarks[0〜20])
+ * @param {Array<object>|null} landmarksAll  検出された手ごとの21点配列（[hand0, hand1]）
  * @param {CanvasRenderingContext2D} ctx  オーバーレイCanvas の 2D コンテキスト
  * @param {number} canvasW
  * @param {number} canvasH
  */
-function updateEffect(pose, score, landmarks, ctx, canvasW, canvasH) {
-  const tier = getScoreTier(score);
+function updateEffect(pose, score, landmarksAll, ctx, canvasW, canvasH) {
+  const tier  = getScoreTier(score);
+  const hand0 = landmarksAll && landmarksAll[0] ? landmarksAll[0] : null;
+  const hand1 = landmarksAll && landmarksAll[1] ? landmarksAll[1] : null;
 
   if (tier > 0) {
-    // 段位が上がった瞬間だけ音を鳴らす（2段目以上は画面フラッシュも）
+    // 段位が上がった瞬間だけ音を鳴らす
     if (tier > lastTier) {
       playEffectSound(pose, tier);
-      if (tier >= 2) triggerFlash();
+      // 80点（tier2）に初めて到達した瞬間は専用サウンドも重ねる
+      if (tier >= 2 && lastTier < 2) {
+        playGreatSound(pose);
+      }
     }
 
     const p = TIER_PARAM[tier];
     // パーティクルをスポーン（段位が高いほど頻度・上限が増える）
     spawnTimer++;
-    if (landmarks) {
+    if (hand0) {
       if (pose === 'dog' && (dogTexts.length === 0 || spawnTimer % Math.max(10, 35 - tier * 8) === 0)) {
         // 薬指MCP(13) と 小指MCP(17) の中間から出す
         const mid = {
-          x: (landmarks[13].x + landmarks[17].x) / 2,
-          y: (landmarks[13].y + landmarks[17].y) / 2,
+          x: (hand0[13].x + hand0[17].x) / 2,
+          y: (hand0[13].y + hand0[17].y) / 2,
         };
-        spawnDogText(mid, canvasW, canvasH, p.maxDog);
+        // 手首(0)より鼻先(mid)が raw 座標で小さい x にある場合、画面上では右向き
+        const visualDir = mid.x < hand0[0].x ? 1 : -1;
+        spawnDogText(mid, canvasW, canvasH, p.maxDog, visualDir);
       }
       if (pose === 'bird' && spawnTimer % p.spawnEvery === 0) {
-        spawnBirdFeather(landmarks[9], canvasW, canvasH, p.maxBird);
+        // 羽の外側から出すため、両手の小指(先端)から発生させる
+        spawnBirdFeather(hand0[20], canvasW, canvasH, p.maxBird);
+        if (hand1) spawnBirdFeather(hand1[20], canvasW, canvasH, p.maxBird);
       }
       if (pose === 'crab' && spawnTimer % p.spawnEvery === 0) {
-        spawnCrabBubble(landmarks[0], canvasW, canvasH, p.maxCrab);
+        // カニの中央上部（人差し指の付け根 = MCP）から出す
+        spawnCrabBubble(hand0[5], canvasW, canvasH, p.maxCrab);
       }
     }
   } else {
@@ -334,8 +355,6 @@ function updateEffect(pose, score, landmarks, ctx, canvasW, canvasH) {
   if      (pose === 'dog')  drawDogTexts(ctx);
   else if (pose === 'bird') drawBirdFeathers(ctx);
   else if (pose === 'crab') drawCrabBubbles(ctx);
-
-  drawFlash(ctx, canvasW, canvasH);
 }
 
 /**
@@ -343,8 +362,7 @@ function updateEffect(pose, score, landmarks, ctx, canvasW, canvasH) {
  */
 function clearEffects(ctx, canvasW, canvasH) {
   clearParticles();
-  lastTier   = 0;
-  flashAlpha = 0;
+  lastTier = 0;
   if (ctx) ctx.clearRect(0, 0, canvasW, canvasH);
 }
 

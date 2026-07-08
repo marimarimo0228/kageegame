@@ -157,6 +157,22 @@ function playBeep(freq = 880, duration = 0.12) {
   } catch (_) {}
 }
 
+// ─── 音声ファイル再生（カウントダウン・最終スコア等の差し替え用）───────
+
+const _audioFileCache = {};
+function playSoundFile(path, volume = 1) {
+  try {
+    let audio = _audioFileCache[path];
+    if (!audio) {
+      audio = new Audio(path);
+      _audioFileCache[path] = audio;
+    }
+    audio.currentTime = 0;
+    audio.volume = volume;
+    audio.play().catch(() => {});
+  } catch (_) {}
+}
+
 function sampleIndices(total, count) {
   const arr = Array.from({ length: total }, (_, i) => i);
   for (let i = arr.length - 1; i > 0; i--) {
@@ -360,7 +376,7 @@ async function runCountdown() {
   const el = document.getElementById('countdown-number');
   for (let i = 3; i >= 1; i--) {
     if (el) el.textContent = String(i);
-    playBeep(440, 0.15);
+    playSoundFile('assets/sounds/countdown.mp3');
     await wait(1000);
   }
   if (el) el.textContent = 'GO!';
@@ -389,16 +405,6 @@ async function flashBestScore(score) {
   el.textContent  = String(score);
   el.style.color   = score >= 80 ? '#EF9F27' : '#FFFFFF';
   el.style.display = 'flex';
-  _retriggerClass(el, 'score-pop');
-
-  // 高得点時ほど手応えのある演出（画面フラッシュ + 揺れ）を重ねる
-  if (score >= 60) {
-    _retriggerClass(document.getElementById('score-flash-overlay'), 'flash-active');
-  }
-  if (score >= 80) {
-    _retriggerClass(document.getElementById('screen-play'), 'screen-shake');
-  }
-
   await wait(FLASH_DURATION);
   el.style.display = 'none';
 }
@@ -582,7 +588,7 @@ async function runQuestion(qIdx, isTutorial = false) {
         window.EffectsModule.updateEffect(
           poseData ? poseData.name : '',
           lastTMScore,
-          lastLandmarks ? lastLandmarks[0] : null,
+          lastLandmarks || null,
           overlayCtx,
           overlayCanvas.width,
           overlayCanvas.height
@@ -701,6 +707,7 @@ function showResult() {
 
   const totalEl = document.getElementById('result-total');
   if (totalEl) totalEl.textContent = String(avg);
+  playSoundFile('assets/sounds/final-score.mp3');
 
   const scoresEl = document.getElementById('result-scores');
   if (scoresEl) {
