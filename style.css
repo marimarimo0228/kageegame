@@ -332,6 +332,13 @@ section[id^="screen-"] {
 
 .play-right {
   position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 4px #FDF6E3,
+    inset 0 0 0 7px rgba(232, 71, 42, 0.55),
+    inset 0 0 0 9px rgba(139, 94, 60, 0.25),
+    4px 6px 16px rgba(61, 43, 31, 0.15);
 }
 
 #canvas-camera {
@@ -369,6 +376,21 @@ section[id^="screen-"] {
   transition: color 0.15s;
   white-space: nowrap;
   z-index: 10;
+}
+
+/* リアルタイムスコアの段位ラベル（GOOD/GREAT/PERFECT） */
+#score-display.tier-good    { color: #3498DB; }
+#score-display.tier-great   { color: #5DCAA5; }
+#score-display.tier-perfect { color: #E8472A; }
+
+#score-display.label-pop {
+  animation: score-label-pop-anim 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes score-label-pop-anim {
+  0%   { transform: translateX(-50%) scale(0.6); }
+  60%  { transform: translateX(-50%) scale(1.28); }
+  100% { transform: translateX(-50%) scale(1); }
 }
 
 /* 確率バー */
@@ -455,6 +477,160 @@ section[id^="screen-"] {
   50%      { box-shadow: inset 0 0 100px 25px rgba(224, 60, 60, 0.6); }
 }
 
+/* ══════════════════════════════════════════════════════
+   個人動物園マップ画面
+══════════════════════════════════════════════════════ */
+#screen-zoo-map {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: auto;
+  padding: 1.4rem 0 2.4rem;
+}
+
+#zoo-points-display {
+  flex-shrink: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.zoo-map-ground {
+  position: relative;
+  flex-shrink: 0;
+  width: 1000px;
+  aspect-ratio: 1000 / 700;
+  background: #D9E5C1;
+  border-radius: 20px;
+  box-shadow: 0 4px 14px rgba(61, 43, 31, 0.15);
+}
+
+.zoo-area-box {
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.6rem;
+  text-align: center;
+  background: #E8D5B5;
+  border: 2px solid rgba(61, 43, 31, 0.3);
+  border-radius: 18px;
+  box-shadow: 0 4px 10px rgba(61, 43, 31, 0.18);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.zoo-area-box:not(.locked):hover {
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.zoo-area-label {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.zoo-area-icons {
+  font-size: 1.35rem;
+}
+
+.zoo-area-box.locked {
+  opacity: 0.35;
+  filter: grayscale(0.7) brightness(0.7);
+  cursor: not-allowed;
+}
+
+.zoo-area-lock-icon {
+  font-size: 1.7rem;
+}
+
+.zoo-area-condition {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+/* エリア新規解放時の通知モーダル */
+.zoo-unlock-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.85);
+  background: rgba(61, 43, 31, 0.94);
+  color: #FDF6E3;
+  padding: 1.4rem 2rem;
+  border-radius: 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+  max-width: 80vw;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.zoo-unlock-modal.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* ══════════════════════════════════════════════════════
+   エリア開始前の演出画面
+══════════════════════════════════════════════════════ */
+#screen-area-intro {
+  flex-direction: column;
+  gap: 1.2rem;
+  background: linear-gradient(160deg, #FDF6E3 0%, #F3E3C5 100%);
+  cursor: pointer;
+}
+
+.area-intro-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.area-intro-eyebrow {
+  letter-spacing: 0.5em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.area-intro-name {
+  font-size: clamp(2.4rem, 9vw, 5rem);
+  font-weight: 900;
+  color: #E8472A;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.15);
+  animation: area-intro-bounce-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes area-intro-bounce-in {
+  0%   { opacity: 0; transform: scale(0.5) rotate(-4deg); }
+  60%  { opacity: 1; transform: scale(1.12) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+.area-intro-hint {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  animation: area-intro-hint-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes area-intro-hint-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+
 /* NEW BEST! ラベル（右上） */
 #new-best-label {
   position: absolute;
@@ -523,6 +699,7 @@ section[id^="screen-"] {
 }
 
 .result-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -535,13 +712,102 @@ section[id^="screen-"] {
   max-width: 90vw;
   max-height: 92vh;
   overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: 4px 6px 20px rgba(61, 43, 31, 0.12), 0 0 0 6px rgba(139, 94, 60, 0.06);
 }
 
-.result-heading {
-  font-size: 0.9rem;
-  letter-spacing: 0.4em;
+/* お題（エリア）名: 画面中央上部 */
+.result-area-name {
+  font-size: clamp(1.3rem, 4vw, 2rem);
+  font-weight: 900;
   color: #E8472A;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+/* プレイ中のベストショット: 画面中央 */
+.result-screenshots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.9rem;
+}
+
+.result-shot {
+  width: clamp(90px, 22vw, 150px);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: #FFFFFF;
+  padding: 6px 6px 16px;
+  border: 1px solid rgba(139, 94, 60, 0.25);
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(61, 43, 31, 0.25);
+  transform: rotate(var(--tilt, -3deg));
+}
+
+.result-shot:nth-child(odd)  { --tilt: -4deg; }
+.result-shot:nth-child(even) { --tilt: 3deg; }
+
+.result-shot-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 1.6rem;
+}
+
+/* ドラムロールで点数が出てくる演出（中央→1秒後に下部へドッキング） */
+.result-score-reveal {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  z-index: 8;
+  pointer-events: none;
+  transition:
+    top 0.6s cubic-bezier(0.34, 1.15, 0.4, 1),
+    transform 0.6s cubic-bezier(0.34, 1.15, 0.4, 1),
+    opacity 0.5s ease;
+}
+
+.result-score-rolling {
+  display: inline-block;
+  font-size: clamp(3.2rem, 13vw, 6.5rem);
+  font-weight: 900;
+  color: #E8472A;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.15);
+}
+
+.result-score-rolling.score-bang {
+  animation: score-bang-anim 0.4s cubic-bezier(0.34, 1.7, 0.5, 1);
+}
+
+@keyframes score-bang-anim {
+  0%   { transform: scale(0.6); }
+  55%  { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+.result-score-reveal.flying-down {
+  top: 100%;
+  transform: translate(-50%, -50%) scale(0.32);
+  opacity: 0;
+}
+
+/* 平均点・内訳・星・順位: 画面下部（ドラムロール終了1秒後にフェードイン） */
+.result-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.result-summary.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .result-total-wrap {
@@ -762,6 +1028,74 @@ section[id^="screen-"] {
 
 #tutorial-play-hint.visible {
   opacity: 1;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   飼育員ウィジェット（動物園マップ・エリア開始・結果画面）
+══════════════════════════════════════════════════════ */
+.zookeeper-widget {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.7rem;
+  max-width: min(420px, 82vw);
+  pointer-events: none;
+}
+
+.zookeeper-widget.zookeeper-pop {
+  animation: zookeeper-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes zookeeper-pop-in {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.zookeeper-img {
+  height: clamp(72px, 16vw, 128px);
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(2px 4px 8px rgba(61, 43, 31, 0.25));
+}
+
+.zookeeper-bubble {
+  position: relative;
+  background: #FFF9F0;
+  border: 2px solid rgba(139, 94, 60, 0.3);
+  border-radius: 16px;
+  padding: 0.7rem 1rem;
+  margin-bottom: 0.6rem;
+  box-shadow: 3px 4px 10px rgba(61, 43, 31, 0.15);
+}
+
+.zookeeper-bubble::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  bottom: 18px;
+  border: 7px solid transparent;
+  border-right-color: rgba(139, 94, 60, 0.3);
+}
+
+.zookeeper-bubble::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  bottom: 20px;
+  border: 6px solid transparent;
+  border-right-color: #FFF9F0;
+}
+
+.zookeeper-message {
+  font-size: clamp(0.78rem, 2.2vw, 0.92rem);
+  color: #3D2B1F;
+  line-height: 1.6;
+  white-space: pre-line;
 }
 
 

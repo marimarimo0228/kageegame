@@ -17,6 +17,7 @@ let _detectionStarted  = false; // startDetection の二重起動を防ぐフラ
 let questionOrder      = [];   // 今回の問題順（allPoses のインデックス列）
 let scores             = [];   // 各問題のベストスコア
 let sessionSnapshots   = [];   // 今回のセッションで保存した snapshot
+let sessionScreenshots = [];   // 今回のセッションの各問題ベストスコア時カメラ画像（結果画面用）
 let currentDetectionCb = null;
 let _gameAborted = false;
 
@@ -138,6 +139,9 @@ function showScreen(id) {
   const titleCharacter = document.querySelector('.title-character');
   if (canvasArt) canvasArt.style.display = 'none';
   if (titleCharacter) titleCharacter.style.display = 'none';
+
+  // 飼育員ウィジェットも画面遷移のたびに一旦非表示にし、必要な画面側で個別に表示する
+  hideZookeeper();
 }
 
 function playBeep(freq = 880, duration = 0.12) {
@@ -171,6 +175,123 @@ function playSoundFile(path, volume = 1) {
     audio.volume = volume;
     audio.play().catch(() => {});
   } catch (_) {}
+}
+
+// ─── 結果発表ドラムロール演出の音 ───────────────────────────────
+
+let _drumrollAudio = null; // assets/sounds/drumroll.mp3 再生中のインスタンス（バン確定時に停止する用）
+
+// プロシージャル生成のドラムロール音（差し替え用ファイル未配置時のフォールバック）
+function _playDrumrollProcedural(durationMs) {
+  try {
+    if (!_beepCtx) {
+      _beepCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = _beepCtx;
+    const now = ctx.currentTime;
+    let t   = now;
+    let gap = 0.03;
+    while (t - now < durationMs / 1000) {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = 130 + Math.random() * 50;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.16, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+      osc.start(t);
+      osc.stop(t + 0.05);
+      t   += gap;
+      gap *= 1.06; // 徐々に間隔を伸ばして減速させる
+    }
+  } catch (_) {}
+}
+
+/**
+ * ドラムロール音を再生する。assets/sounds/drumroll.mp3 を用意すればそちらが優先され、
+ * 未配置・読み込み失敗時のみ自動でプロシージャル音にフォールバックする
+ * （後から音声ファイルを差し替えられるようにするための仕組み）。
+ */
+function playDrumrollSound(durationMs) {
+  const path = 'assets/sounds/drumroll.mp3';
+  try {
+    let audio = _audioFileCache[path];
+    if (!audio) {
+      audio = new Audio(path);
+      _audioFileCache[path] = audio;
+    }
+    audio.currentTime = 0;
+    audio.volume = 1;
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise
+        .then(() => { _drumrollAudio = audio; })
+        .catch(() => { _playDrumrollProcedural(durationMs); });
+    } else {
+      _drumrollAudio = audio;
+    }
+  } catch (_) {
+    _playDrumrollProcedural(durationMs);
+  }
+}
+
+/** ファイル再生中のドラムロール音を止める（バン確定の瞬間に呼ぶ）。 */
+function stopDrumrollSound() {
+  if (_drumrollAudio) {
+    try { _drumrollAudio.pause(); _drumrollAudio.currentTime = 0; } catch (_) {}
+    _drumrollAudio = null;
+  }
+}
+
+function playScoreBangSound() {
+  try {
+    if (!_beepCtx) {
+      _beepCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = _beepCtx;
+    const t   = ctx.currentTime;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(200, t);
+    osc.frequency.exponentialRampToValueAtTime(70, t + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc.start(t);
+    osc.stop(t + 0.3);
+  } catch (_) {}
+}
+
+/**
+ * el にランダムな数字をシャッフル表示し続け、durationMs 経過後に finalValue で確定する。
+ * ドラムロール音を伴い、確定の瞬間に「バン」という効果音と拡大アニメーションを重ねる。
+ * @returns {Promise<void>}
+ */
+function playDrumrollReveal(el, finalValue, durationMs = 1300) {
+  return new Promise((resolve) => {
+    if (!el) { resolve(); return; }
+    playDrumrollSound(durationMs);
+
+    const startTime = performance.now();
+    function tick() {
+      const elapsed = performance.now() - startTime;
+      if (elapsed >= durationMs) {
+        stopDrumrollSound();
+        el.textContent = String(finalValue);
+        playScoreBangSound();
+        _retriggerClass(el, 'score-bang');
+        resolve();
+        return;
+      }
+      el.textContent = String(Math.floor(Math.random() * 101));
+      const nextDelay = 35 + (elapsed / durationMs) * 110; // 徐々にシャッフルを遅くする
+      setTimeout(tick, nextDelay);
+    }
+    tick();
+  });
 }
 
 function sampleIndices(total, count) {
@@ -399,11 +520,54 @@ function _retriggerClass(el, className) {
   el.classList.add(className);
 }
 
+// ─── 飼育員（チュートリアルキャラクター）ウィジェット ───────────────
+// 動物園マップ・エリア開始・結果画面の3箇所に、状況に応じたセリフ付きで登場させる。
+
+function showZookeeper(message) {
+  const widget = document.getElementById('zookeeper-widget');
+  const imgEl  = document.getElementById('zookeeper-img');
+  const msgEl  = document.getElementById('zookeeper-message');
+  if (!widget) return;
+
+  const imageUrl = window.TutorialModule?.TutorialCharacter?.imageUrl;
+  if (imgEl && imageUrl) imgEl.src = imageUrl;
+  if (msgEl) msgEl.textContent = message;
+
+  _retriggerClass(widget, 'zookeeper-pop');
+  widget.style.display = 'flex';
+}
+
+function hideZookeeper() {
+  const widget = document.getElementById('zookeeper-widget');
+  if (widget) widget.style.display = 'none';
+}
+
+function _zookeeperZooMessage(zooData) {
+  if (!zooData.unlockedAreas || zooData.unlockedAreas.length <= 1) {
+    return 'ようこそ、わたしの動物園へ！\nまずは入口広場から遊んでみよう。';
+  }
+  return `いまのポイントは ${zooData.points}pt だよ。\n次はどこへ行く？`;
+}
+
+function _zookeeperAreaIntroMessage(area) {
+  return `さあ、『${area.label}』へ出発しよう！\n準備ができたら何かキーを押してね。`;
+}
+
+function _zookeeperResultMessage(avg) {
+  if (avg >= 90) return 'すごい！お手本みたいな出来栄えだね！🎉';
+  if (avg >= 70) return 'なかなか様になってきたね！その調子！';
+  if (avg >= 50) return 'いいね、もう少しで上手になりそう！';
+  return '次はもっと上手にできるはず。また挑戦してね！';
+}
+
+// プレイ中と同様、数値ではなく段位ラベル（GOOD/GREAT/PERFECT）のみを表示する。
+// 実際の点数は各エリア終了後の結果画面（ドラムロール演出）でまとめて確定表示する。
 async function flashBestScore(score) {
   const el = document.getElementById('flash-score');
   if (!el) { await wait(FLASH_DURATION); return; }
-  el.textContent  = String(score);
-  el.style.color   = score >= 80 ? '#EF9F27' : '#FFFFFF';
+  const tier = score >= 80 ? 3 : score >= 70 ? 2 : score >= 60 ? 1 : 0;
+  el.textContent   = tier === 3 ? 'PERFECT' : tier === 2 ? 'GREAT' : tier === 1 ? 'GOOD' : '...';
+  el.style.color   = tier === 3 ? '#E8472A' : tier === 2 ? '#5DCAA5' : tier === 1 ? '#3498DB' : '#FFFFFF';
   el.style.display = 'flex';
   await wait(FLASH_DURATION);
   el.style.display = 'none';
@@ -423,7 +587,7 @@ function updateProbabilityBars(preds) {
 
 // ─── 1問の進行 ────────────────────────────────────────────────
 
-async function runQuestion(qIdx, isTutorial = false) {
+async function runQuestion(qIdx, isTutorial = false, durationMs = QUESTION_DURATION) {
   showScreen('screen-play');
 
   const poseData = allPoses[questionOrder[qIdx]];
@@ -431,9 +595,11 @@ async function runQuestion(qIdx, isTutorial = false) {
 
   let bestScore         = 0;
   let bestLandmarks     = null;
+  let bestScreenshot    = null; // ベストスコア更新時のカメラ画像（結果画面用）
   let lastLandmarks     = null;
   let lastTMScore       = 0;
   let lastPointScores   = null; // 部位別一致度（お題キャンバスのドット色分け用）
+  let lastShownTier     = -1;   // リアルタイム表示中の段位（GOOD/GREAT/PERFECT の切替検知用）
   let questionActive    = true;
   let scoringInProgress = false;
   let newBestTimer      = null;
@@ -515,8 +681,8 @@ async function runQuestion(qIdx, isTutorial = false) {
   await new Promise((resolve) => {
     function tick() {
       const elapsed   = performance.now() - startTime;
-      const remaining = Math.max(0, QUESTION_DURATION - elapsed);
-      const ratio     = remaining / QUESTION_DURATION;
+      const remaining = Math.max(0, durationMs - elapsed);
+      const ratio     = remaining / durationMs;
 
       if (timerBar) {
         timerBar.style.width = `${ratio * 100}%`;
@@ -554,9 +720,18 @@ async function runQuestion(qIdx, isTutorial = false) {
 
             lastTMScore = score;
 
+            // リアルタイム表示は数値ではなく段位ラベル（GOOD/GREAT/PERFECT）のみ
             if (scoreDisplay) {
-              scoreDisplay.textContent = String(score);
-              scoreDisplay.style.color = score >= 80 ? '#EF9F27' : '';
+              const tier = score >= 80 ? 3 : score >= 70 ? 2 : score >= 60 ? 1 : 0;
+              if (tier !== lastShownTier) {
+                lastShownTier = tier;
+                scoreDisplay.classList.remove('tier-good', 'tier-great', 'tier-perfect');
+                if      (tier === 1) { scoreDisplay.textContent = 'GOOD';    scoreDisplay.classList.add('tier-good'); }
+                else if (tier === 2) { scoreDisplay.textContent = 'GREAT';   scoreDisplay.classList.add('tier-great'); }
+                else if (tier === 3) { scoreDisplay.textContent = 'PERFECT'; scoreDisplay.classList.add('tier-perfect'); }
+                else                 { scoreDisplay.textContent = ''; }
+                _retriggerClass(scoreDisplay, 'label-pop');
+              }
             }
 
             // 部位別一致度を更新（お題キャンバスのドット色分け用）
@@ -568,6 +743,9 @@ async function runQuestion(qIdx, isTutorial = false) {
               bestScore = score;
               if (lastLandmarks && lastLandmarks[0]) {
                 bestLandmarks = lastLandmarks[0].map(lm => [lm.x, lm.y]);
+              }
+              if (cameraCanvas) {
+                try { bestScreenshot = cameraCanvas.toDataURL('image/jpeg', 0.72); } catch (_) {}
               }
               if (!newBestActive) {
                 newBestActive = true;
@@ -595,7 +773,7 @@ async function runQuestion(qIdx, isTutorial = false) {
         );
       }
 
-      if (elapsed >= QUESTION_DURATION || _gameAborted) {
+      if (elapsed >= durationMs || _gameAborted) {
         resolve();
       } else {
         requestAnimationFrame(tick);
@@ -632,6 +810,7 @@ async function runQuestion(qIdx, isTutorial = false) {
     }
 
     scores.push(bestScore);
+    sessionScreenshots.push(bestScreenshot);
 
     if (qIdx < QUESTION_COUNT - 1) {
       await wait(INTERVAL_DURATION);
@@ -663,7 +842,7 @@ async function startTutorial() {
 async function startGame() {
   _gameAborted = false;
   console.log('[game] startGame() 開始');
-  
+
   // モデル未読込でもゲームは即座に開始する（スコアは後から更新される）
   if (window.ClassifierModule && !window.ClassifierModule.isModelLoaded()) {
     console.warn('[game] モデル未読込のためバックグラウンドでリトライ中...');
@@ -674,30 +853,149 @@ async function startGame() {
   if (window.TutorialModule && window.TutorialModule.isFirstPlay()) {
     window.TutorialModule.markTutorialDone();
     await window.TutorialModule.runTutorial();
-    showScreen('screen-title');
-    return;
   }
-
-  scores           = [];
-  sessionSnapshots = [];
 
   if (allPoses.length === 0) await loadPoses();
 
-  const playableIdx = allPoses.map((p, i) => i).filter(i => !allPoses[i].tutorialOnly);
-  questionOrder = sampleIndices(playableIdx.length, QUESTION_COUNT).map(i => playableIdx[i]);
+  // スタート後はプレイ画面へ直行せず、まず個人動物園マップを表示する
+  await showZooMap();
+}
+
+// ─── 個人動物園マップ ─────────────────────────────────────────
+
+let currentArea        = null; // 選択中のエリア（poses/timeLimit 等の条件を保持）
+let lastSessionUnlocks = [];   // 直近のプレイセッションで新規解放されたエリアID
+
+/**
+ * 個人動物園マップ画面を表示する。ゲームのトップ画面（スタート後の遷移先）。
+ */
+async function showZooMap() {
+  showScreen('screen-zoo-map');
+  if (!window.ZooModule || !window.ZooUIModule) return;
+
+  const zooData = window.ZooModule.loadZoo();
+  const areas   = await window.ZooModule.getAreas();
+
+  const ptsEl = document.getElementById('zoo-points-display');
+  if (ptsEl) ptsEl.textContent = `${zooData.points} pt`;
+
+  window.ZooUIModule.renderZooMap(zooData, areas);
+  window.ZooUIModule.onAreaSelected = (areaId) => {
+    const area = areas.find((a) => a.id === areaId);
+    if (area) startAreaPlay(area);
+  };
+
+  showZookeeper(_zookeeperZooMessage(zooData));
+}
+
+/**
+ * エリア選択直後、カウントダウンの前に飼育場所名を表示する画面。
+ * キー入力またはタップで次へ進む。
+ * @param {object} area
+ * @returns {Promise<void>}
+ */
+function showAreaIntro(area) {
+  return new Promise((resolve) => {
+    showScreen('screen-area-intro');
+    const nameEl = document.getElementById('area-intro-name');
+    if (nameEl) nameEl.textContent = area.label;
+    showZookeeper(_zookeeperAreaIntroMessage(area));
+
+    const screenEl = document.getElementById('screen-area-intro');
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      window.removeEventListener('keydown', onKey);
+      if (screenEl) screenEl.removeEventListener('click', onTap);
+      resolve();
+    };
+    const onKey = () => finish();
+    const onTap = () => finish();
+
+    window.addEventListener('keydown', onKey);
+    if (screenEl) screenEl.addEventListener('click', onTap);
+  });
+}
+
+/**
+ * 選択されたエリアの条件（出題ポーズ・制限時間）でゲームを開始する。
+ * @param {object} area  getAreas() が返す1エリア分のデータ
+ */
+async function startAreaPlay(area) {
+  _gameAborted        = false;
+  currentArea         = area;
+  scores              = [];
+  sessionSnapshots    = [];
+  sessionScreenshots  = [];
+  lastSessionUnlocks  = [];
+
+  if (allPoses.length === 0) await loadPoses();
+
+  // このエリアで出題可能なポーズのみに絞り込む
+  const playableIdx = allPoses
+    .map((p, i) => i)
+    .filter((i) => !allPoses[i].tutorialOnly && (area.poses ?? []).includes(allPoses[i].name));
+
+  if (playableIdx.length === 0) {
+    console.error('[game] エリアに対応するお題が見つかりません:', area.id);
+    await showZooMap();
+    return;
+  }
+
+  // ポーズ種が QUESTION_COUNT 未満のエリア（例: イヌのみ）は重複ありで埋める
+  questionOrder = playableIdx.length >= QUESTION_COUNT
+    ? sampleIndices(playableIdx.length, QUESTION_COUNT).map((i) => playableIdx[i])
+    : Array.from({ length: QUESTION_COUNT }, () => playableIdx[Math.floor(Math.random() * playableIdx.length)]);
+
+  const durationMs = area.timeLimit ? area.timeLimit * 1000 : QUESTION_DURATION;
 
   // 骨格抽出はバックグラウンドで実行（完了を待たずゲーム進行）
   ensureReferenceVecs();
   _ensureDetection();
+
+  // カウントダウン前に飼育場所名を表示し、キー入力/タップを待ってから開始する
+  await showAreaIntro(area);
   await runCountdown();
 
   for (let i = 0; i < QUESTION_COUNT; i++) {
-    await runQuestion(i);
+    await runQuestion(i, false, durationMs);
+
+    const qScore = scores[scores.length - 1];
+    const qPose  = allPoses[questionOrder[i]] ? allPoses[questionOrder[i]].name : '';
+    if (window.ZooModule && qPose && qScore != null) {
+      const result = await window.ZooModule.addResult(qScore, qPose);
+      if (result && result.newlyUnlockedAreas && result.newlyUnlockedAreas.length) {
+        lastSessionUnlocks.push(...result.newlyUnlockedAreas);
+      }
+    }
   }
 
   showResult();
 }
 
+/**
+ * 結果画面の「もう一度」ボタンから呼ばれる。
+ * セッション中に新規解放されたエリアがあれば通知演出を挟んでからマップ画面に戻る。
+ */
+async function backToZooMap() {
+  if (lastSessionUnlocks.length > 0 && window.ZooModule && window.ZooUIModule) {
+    const areas = await window.ZooModule.getAreas();
+    for (const areaId of lastSessionUnlocks) {
+      const area = areas.find((a) => a.id === areaId);
+      await window.ZooUIModule.showUnlockAnimation(area ? area.label : areaId);
+    }
+    lastSessionUnlocks = [];
+  }
+  await showZooMap();
+}
+
+/**
+ * 結果画面を表示する。
+ * お題名・ベストショットは即座に表示し、点数はドラムロール演出のあと
+ * 中央にバンと確定表示され、1秒後に画面下部の内訳へドッキングする。
+ */
 function showResult() {
   showScreen('screen-result');
 
@@ -705,10 +1003,21 @@ function showResult() {
     ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length)
     : 0;
 
-  const totalEl = document.getElementById('result-total');
-  if (totalEl) totalEl.textContent = String(avg);
-  playSoundFile('assets/sounds/final-score.mp3');
+  // 画面中央上部: お題（エリア）名
+  const areaNameEl = document.getElementById('result-area-name');
+  if (areaNameEl) areaNameEl.textContent = currentArea ? currentArea.label : 'RESULT';
 
+  // 画面中央: プレイした枚数分のベストショット
+  const shotsEl = document.getElementById('result-screenshots');
+  if (shotsEl) {
+    shotsEl.innerHTML = sessionScreenshots
+      .map((src, i) => src
+        ? `<img class="result-shot" src="${src}" alt="${i + 1}枚目のベストショット">`
+        : `<div class="result-shot result-shot-empty" aria-hidden="true">?</div>`)
+      .join('');
+  }
+
+  // 画面下部（ドッキング先）の内訳データを先に準備しておく
   const scoresEl = document.getElementById('result-scores');
   if (scoresEl) {
     scoresEl.innerHTML = scores
@@ -719,6 +1028,9 @@ function showResult() {
       })
       .join('');
   }
+
+  const totalEl = document.getElementById('result-total');
+  if (totalEl) totalEl.textContent = String(avg);
 
   const { addScore, getRanking } = window.RankingModule;
   addScore(avg);
@@ -734,25 +1046,45 @@ function showResult() {
     document.getElementById('star-3'),
   ];
   const litCount = avg >= 80 ? 3 : avg >= 50 ? 2 : avg >= 20 ? 1 : 0;
-  starEls.forEach((el, i) => {
-    if (!el) return;
-    el.classList.remove('lit');
-    setTimeout(() => { if (i < litCount) el.classList.add('lit'); }, 300 + i * 200);
-  });
+  starEls.forEach((el) => el && el.classList.remove('lit'));
 
-  // 全問80点以上ならパーフェクトコンボ演出（紙吹雪 + バナー + ファンファーレ）
-  const banner   = document.getElementById('perfect-combo-banner');
-  const fxCanvas = document.getElementById('canvas-combo-fx');
-  const isPerfect = scores.length === QUESTION_COUNT && scores.every((s) => s >= 80);
-  if (isPerfect && banner && fxCanvas && window.EffectsModule) {
-    banner.style.display = 'flex';
-    _retriggerClass(banner, 'combo-pop');
-    window.EffectsModule.playPerfectCombo(fxCanvas).then(() => {
-      banner.style.display = 'none';
+  const revealEl  = document.getElementById('result-score-reveal');
+  const rollingEl = document.getElementById('result-score-rolling');
+  const summaryEl = document.getElementById('result-summary');
+  if (revealEl)  revealEl.classList.remove('flying-down');
+  if (rollingEl) rollingEl.classList.remove('score-bang');
+  if (summaryEl) summaryEl.classList.remove('visible');
+
+  // ドラムロール → バン確定 → 1秒後に下部へドッキング、の演出シーケンス
+  (async () => {
+    await playDrumrollReveal(rollingEl, avg);
+    playSoundFile('assets/sounds/final-score.mp3');
+
+    starEls.forEach((el, i) => {
+      if (!el) return;
+      setTimeout(() => { if (i < litCount) el.classList.add('lit'); }, i * 150);
     });
-  } else if (banner) {
-    banner.style.display = 'none';
-  }
+
+    await wait(1000);
+
+    if (revealEl)  revealEl.classList.add('flying-down');
+    if (summaryEl) summaryEl.classList.add('visible');
+    showZookeeper(_zookeeperResultMessage(avg));
+
+    // 全問80点以上ならパーフェクトコンボ演出（紙吹雪 + バナー + ファンファーレ）
+    const banner   = document.getElementById('perfect-combo-banner');
+    const fxCanvas = document.getElementById('canvas-combo-fx');
+    const isPerfect = scores.length === QUESTION_COUNT && scores.every((s) => s >= 80);
+    if (isPerfect && banner && fxCanvas && window.EffectsModule) {
+      banner.style.display = 'flex';
+      _retriggerClass(banner, 'combo-pop');
+      window.EffectsModule.playPerfectCombo(fxCanvas).then(() => {
+        banner.style.display = 'none';
+      });
+    } else if (banner) {
+      banner.style.display = 'none';
+    }
+  })();
 }
 
 async function showArtCanvas() {
@@ -1376,5 +1708,6 @@ function exitCalibrateScreen() {
 window.GameModule = {
   initGame, startGame, startTutorial, showResult, showArtCanvas,
   showCalibrateScreen, exitCalibrateScreen, goToTitle,
+  showZooMap, backToZooMap,
   calibSelectPose, calibSetHands, calibRegister, calibSaveDefault, calibReset,
 };
