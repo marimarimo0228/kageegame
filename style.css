@@ -1513,3 +1513,77 @@ section[id^="screen-"] {
   z-index: 10;
   white-space: nowrap;
 }
+
+
+/* ══════════════════════════════════════════════════════
+   エフェクト確認（デバッグ）画面  #screen-effect-debug
+══════════════════════════════════════════════════════ */
+
+#screen-effect-debug {
+  /* エフェクトが白系なので暗い背景で見やすくする */
+  background: #1c2733;
+}
+
+#canvas-effect-debug {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* プレイ画面のオーバーレイと同じ左右反転を再現する */
+  transform: scaleX(-1);
+}
+
+.fx-debug-back-btn {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 2;
+  border-color: rgba(255, 255, 255, 0.85);
+  color: #fff;
+}
+
+.fx-debug-panel {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  text-align: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 16px;
+  padding: 0.8rem 1.4rem;
+}
+
+.fx-debug-help {
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.fx-debug-btns {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.fx-debug-pose-btn {
+  background: transparent;
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 20px;
+  padding: 8px 20px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.fx-debug-pose-btn:hover {
+  border-color: #fff;
+}
+
+.fx-debug-pose-btn.active {
+  background: #E8472A;
+  border-color: #E8472A;
+}

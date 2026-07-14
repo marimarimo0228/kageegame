@@ -47,6 +47,10 @@
               onclick="window.GameModule.showCalibrateScreen()">
         骨格調整
       </button>
+      <button class="btn-secondary"
+              onclick="window.GameModule.showEffectDebug()">
+        エフェクト確認
+      </button>
     </div>
 
     <!-- 右: チュートリアルキャラクター -->
@@ -65,6 +69,27 @@
       <ol id="ranking-list"></ol>
     </div>
 
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       #screen-effect-debug  エフェクト確認（デバッグ）画面
+  ══════════════════════════════════════════════ -->
+  <section id="screen-effect-debug" style="display:none">
+    <canvas id="canvas-effect-debug" aria-hidden="true"></canvas>
+    <button class="btn-secondary fx-debug-back-btn"
+            onclick="window.GameModule.exitEffectDebug()">← タイトルへ</button>
+    <div class="fx-debug-panel">
+      <p class="fx-debug-help">キー <b>1</b> / <b>2</b> / <b>3</b> またはボタンでエフェクトを再生（Esc で戻る）</p>
+      <div class="fx-debug-btns">
+        <button class="fx-debug-pose-btn" data-pose="dog"
+                onclick="window.GameModule.effectDebugSelect('dog')">1: イヌ</button>
+        <button class="fx-debug-pose-btn" data-pose="bird"
+                onclick="window.GameModule.effectDebugSelect('bird')">2: ハト</button>
+        <button class="fx-debug-pose-btn" data-pose="crab"
+                onclick="window.GameModule.effectDebugSelect('crab')">3: カニ</button>
+      </div>
+    </div>
   </section>
 
 

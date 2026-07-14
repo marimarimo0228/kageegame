@@ -5,6 +5,14 @@ let audioCtx   = null;
 let lastTier   = 0;
 let spawnTimer = 0;
 
+// 犬の鳴き声サイクル管理（残りフレーム数。0以下で次の「ワンワン」を発火）
+let dogBarkTimer = 0;
+const DOG_BARK_INTERVAL = 90; // 約1.5秒ごとに鳴き声＋表示を同期発火
+
+// 鳥エフェクト用の羽画像
+const featherImg = new Image();
+featherImg.src = 'assets/hane.png';
+
 // パーティクル配列
 let dogTexts     = [];
 let birdFeathers = [];
@@ -34,6 +42,7 @@ function initEffects(_canvas) {
   crabBubbles  = [];
   lastTier     = 0;
   spawnTimer   = 0;
+  dogBarkTimer = 0;
 }
 
 // ─── 音声生成 ─────────────────────────────────────────────────
@@ -45,25 +54,6 @@ function ensureAudio() {
 }
 
 // tier (1〜3) が高いほどピッチが上がり「決まった」感が強まる
-function playDogSound(tier = 1) {
-  ensureAudio();
-  const pitchUp = 1 + (tier - 1) * 0.18;
-  // 440Hz → 880Hz に素早く上昇するビープ × 2（ワンワン）
-  for (let i = 0; i < 2; i++) {
-    const t    = audioCtx.currentTime + i * 0.22;
-    const osc  = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.frequency.setValueAtTime(440 * pitchUp, t);
-    osc.frequency.exponentialRampToValueAtTime(880 * pitchUp, t + 0.10);
-    gain.gain.setValueAtTime(0.30, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-    osc.start(t);
-    osc.stop(t + 0.14);
-  }
-}
-
 function playBirdSound(tier = 1) {
   ensureAudio();
   const pitchUp = 1 + (tier - 1) * 0.18;
@@ -98,10 +88,10 @@ function playCrabSound(tier = 1) {
   osc.stop(audioCtx.currentTime + 0.5);
 }
 
+// 犬は合成音（機械音）を使わず、鳴き声ファイル（great-dog.mp3）のみで鳴らす
 function playEffectSound(pose, tier = 1) {
   try {
-    if      (pose === 'dog')  playDogSound(tier);
-    else if (pose === 'bird') playBirdSound(tier);
+    if      (pose === 'bird') playBirdSound(tier);
     else if (pose === 'crab') playCrabSound(tier);
   } catch (_) {}
 }
@@ -155,8 +145,9 @@ function playPerfectComboSound() {
 // 画面上で右に動かすには raw 座標の x を減らす（負の vx）必要がある。
 function spawnDogText(lm, canvasW, canvasH, maxCount = 3, visualDir = 1) {
   if (dogTexts.length >= maxCount) return;
-  // 口(中央付近)から画面の縁近くまでを 0.5秒(≒30フレーム@60fps)で移動する速度
-  const speed = (canvasW * 0.42) / 30;
+  // 口(中央付近)から画面の縁近くまでを 0.8秒(≒48フレーム@60fps)で移動する速度
+  // （鳴き声「ワンワン」のおおよその長さに合わせて表示する）
+  const speed = (canvasW * 0.42) / 48;
   dogTexts.push({
     x:       lm.x * canvasW,
     y:       lm.y * canvasH,
@@ -164,7 +155,7 @@ function spawnDogText(lm, canvasW, canvasH, maxCount = 3, visualDir = 1) {
     vy:      -1.3,
     alpha:   1.0,
     life:    0,
-    maxLife: 30,
+    maxLife: 48,
   });
 }
 
@@ -174,13 +165,15 @@ function spawnBirdFeather(lm, canvasW, canvasH, maxCount = 20) {
   birdFeathers.push({
     x:       lm.x * canvasW + (Math.random() - 0.5) * 50,
     y:       lm.y * canvasH + (Math.random() - 0.5) * 30,
-    vx:      side * (3 + Math.random() * 5),    // 横方向に強く飛び散る
-    vy:      -(2 + Math.random() * 1.5),        // 飛び散った一瞬だけ上に跳ねる
-    angle:   Math.random() * Math.PI * 2,
-    angVel:  (Math.random() - 0.5) * 0.22,
+    vx:      side * (2 + Math.random() * 3),    // 横方向にふわっと散る
+    vy:      -(1 + Math.random() * 1),          // 散った一瞬だけ軽く上に跳ねる
+    angle:   (Math.random() - 0.5) * 0.6,       // 基本の傾き（画像なので緩やかに）
+    swayAmp: 1.2 + Math.random() * 1.2,         // 左右揺れの振れ幅
     phase:   Math.random() * Math.PI * 2,
+    size:    120 + Math.random() * 72,          // 描画サイズ(px)（視認性重視で大きめ）
+    flip:    Math.random() < 0.5 ? -1 : 1,      // 左右反転をランダムに
     life:    0,
-    maxLife: 90,
+    maxLife: 150 + Math.random() * 50,          // ゆっくり落ちるぶん寿命も長く
   });
 }
 
@@ -208,12 +201,12 @@ function updateParticles() {
   });
 
   birdFeathers = birdFeathers.filter((p) => {
-    p.phase += 0.15;
+    p.phase += 0.07;
     p.vx    *= 0.96;                            // 空気抵抗で横速度を徐々に減衰
-    p.vy    += 0.22;                            // 重力で上昇→落下に転じる（落下を速く）
-    p.x     += p.vx;
-    p.y     += p.vy + Math.sin(p.phase) * 0.4; // ひらひら縦揺れ
-    p.angle += p.angVel;
+    p.vy    += 0.06;                            // 弱い重力でゆっくり落下に転じる
+    if (p.vy > 1.1) p.vy = 1.1;                 // 終端速度を抑えてひらひら感を出す
+    p.x     += p.vx + Math.sin(p.phase) * p.swayAmp; // 左右にゆらゆら揺れながら落ちる
+    p.y     += p.vy;
     p.life  += 1;
     return p.life < p.maxLife;
   });
@@ -231,6 +224,7 @@ function clearParticles() {
   birdFeathers = [];
   crabBubbles  = [];
   spawnTimer   = 0;
+  dogBarkTimer = 0;  // 次回突入時にすぐ鳴き声＋表示が出る
 }
 
 // ─── 描画 ────────────────────────────────────────────────────
@@ -255,22 +249,19 @@ function drawDogTexts(ctx) {
 }
 
 function drawBirdFeathers(ctx) {
+  if (!featherImg.complete || featherImg.naturalWidth === 0) return; // 画像読み込み前は描かない
   ctx.save();
+  // CSS の scaleX(-1) を打ち消して画像を正しい向きで描く
+  ctx.scale(-1, 1);
   for (const p of birdFeathers) {
-    const alpha = 1 - p.life / p.maxLife;
-    ctx.globalAlpha = alpha;
+    const ratio = p.life / p.maxLife;
+    // 後半は不透明度を下げながら消えていく
+    ctx.globalAlpha = ratio < 0.55 ? 1 : Math.max(0, 1 - (ratio - 0.55) / 0.45);
     ctx.save();
-    ctx.translate(p.x, p.y);
-    ctx.rotate(p.angle);
-    // ひらひら感を演出（最小幅 0.3 を確保して消えすぎを防ぐ）
-    ctx.scale(Math.abs(Math.sin(p.phase)) + 0.3, 1);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 40, 18, 0, 0, Math.PI * 2);  // 羽サイズ2倍（旧: 20×9）
-    ctx.fillStyle    = '#FFFFFF';
-    ctx.fill();
-    ctx.strokeStyle  = 'rgba(180, 210, 255, 0.55)';
-    ctx.lineWidth    = 1.5;
-    ctx.stroke();
+    ctx.translate(-p.x, p.y);  // x を反転
+    ctx.rotate(p.angle + Math.sin(p.phase) * 0.45); // 揺れに合わせて傾きも往復
+    ctx.scale(p.flip, 1);
+    ctx.drawImage(featherImg, -p.size / 2, -p.size / 2, p.size, p.size);
     ctx.restore();
   }
   ctx.restore();
@@ -280,10 +271,10 @@ function drawCrabBubbles(ctx) {
   ctx.save();
   for (const p of crabBubbles) {
     const ratio = p.life / p.maxLife;
-    ctx.globalAlpha  = (1 - ratio) * 0.65;
-    ctx.strokeStyle  = 'rgba(255,255,255,0.85)';
-    ctx.fillStyle    = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth    = 1;
+    ctx.globalAlpha  = (1 - ratio) * 0.95;
+    ctx.strokeStyle  = 'rgba(255,255,255,0.95)';
+    ctx.fillStyle    = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth    = 2;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
     ctx.fill();
@@ -309,8 +300,8 @@ function updateEffect(pose, score, landmarksAll, ctx, canvasW, canvasH) {
   const hand1 = landmarksAll && landmarksAll[1] ? landmarksAll[1] : null;
 
   if (tier > 0) {
-    // 段位が上がった瞬間だけ音を鳴らす
-    if (tier > lastTier) {
+    // 段位が上がった瞬間だけ音を鳴らす（犬は鳴き声サイクル側で鳴らすので除外）
+    if (tier > lastTier && pose !== 'dog') {
       playEffectSound(pose, tier);
       // 80点（tier2）に初めて到達した瞬間は専用サウンドも重ねる
       if (tier >= 2 && lastTier < 2) {
@@ -322,15 +313,21 @@ function updateEffect(pose, score, landmarksAll, ctx, canvasW, canvasH) {
     // パーティクルをスポーン（段位が高いほど頻度・上限が増える）
     spawnTimer++;
     if (hand0) {
-      if (pose === 'dog' && (dogTexts.length === 0 || spawnTimer % Math.max(10, 35 - tier * 8) === 0)) {
-        // 薬指MCP(13) と 小指MCP(17) の中間から出す
-        const mid = {
-          x: (hand0[13].x + hand0[17].x) / 2,
-          y: (hand0[13].y + hand0[17].y) / 2,
-        };
-        // 手首(0)より鼻先(mid)が raw 座標で小さい x にある場合、画面上では右向き
-        const visualDir = mid.x < hand0[0].x ? 1 : -1;
-        spawnDogText(mid, canvasW, canvasH, p.maxDog, visualDir);
+      if (pose === 'dog') {
+        // 鳴き声（great-dog.mp3）と「ワンワン」表示を同じタイミングで発火させる
+        dogBarkTimer--;
+        if (dogBarkTimer <= 0) {
+          // 薬指MCP(13) と 小指MCP(17) の中間から出す
+          const mid = {
+            x: (hand0[13].x + hand0[17].x) / 2,
+            y: (hand0[13].y + hand0[17].y) / 2,
+          };
+          // 手首(0)より鼻先(mid)が raw 座標で小さい x にある場合、画面上では右向き
+          const visualDir = mid.x < hand0[0].x ? 1 : -1;
+          playGreatSound('dog');
+          spawnDogText(mid, canvasW, canvasH, p.maxDog, visualDir);
+          dogBarkTimer = DOG_BARK_INTERVAL;
+        }
       }
       if (pose === 'bird' && spawnTimer % p.spawnEvery === 0) {
         // 羽の外側から出すため、両手の小指(先端)から発生させる
@@ -343,8 +340,12 @@ function updateEffect(pose, score, landmarksAll, ctx, canvasW, canvasH) {
       }
     }
   } else {
-    // 段位から外れたら即クリア（次回突入時に音が再び鳴る）
-    if (lastTier > 0) clearParticles();
+    // 段位から外れても既存のパーティクルは消さず、寿命まで表示し続ける。
+    // タイマーだけリセットし、次回突入時に犬の鳴き声がすぐ出るようにする。
+    if (lastTier > 0) {
+      spawnTimer   = 0;
+      dogBarkTimer = 0;
+    }
   }
   lastTier = tier;
 

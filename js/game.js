@@ -825,6 +825,80 @@ function goToTitle() {
   showScreen('screen-title');
 }
 
+// ─── エフェクト確認（デバッグ）画面 ──────────────────────────
+// タイトル画面からプレイせずに各ポーズのエフェクトを確認できる。
+// キー 1/2/3（またはボタン）で イヌ/ハト/カニ を切り替え、Esc で戻る。
+
+let _fxDebugActive = false;
+let _fxDebugPose   = null;
+
+// エフェクト発生位置を決めるダミーの手ランドマーク（画面中央付近）
+function _fxDebugHands() {
+  const mk = (cx, cy) => Array.from({ length: 21 }, () => ({ x: cx, y: cy }));
+  const hand0 = mk(0.5, 0.45);
+  hand0[0]  = { x: 0.58, y: 0.55 };  // 手首
+  hand0[13] = { x: 0.46, y: 0.42 };  // 薬指MCP（犬の口元）
+  hand0[17] = { x: 0.48, y: 0.46 };  // 小指MCP（犬の口元）
+  hand0[5]  = { x: 0.50, y: 0.40 };  // 人差し指MCP（カニの泡の出所）
+  hand0[20] = { x: 0.38, y: 0.45 };  // 小指先端（羽の出所・左）
+  const hand1 = mk(0.62, 0.45);
+  hand1[20] = { x: 0.66, y: 0.45 };  // 小指先端（羽の出所・右）
+  return [hand0, hand1];
+}
+
+function effectDebugSelect(pose) {
+  const canvas = document.getElementById('canvas-effect-debug');
+  if (!canvas || !window.EffectsModule) return;
+  window.EffectsModule.clearEffects(canvas.getContext('2d'), canvas.width, canvas.height);
+  _fxDebugPose = pose;
+  document.querySelectorAll('.fx-debug-pose-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.pose === pose);
+  });
+}
+
+function _fxDebugOnKey(e) {
+  if      (e.key === '1') effectDebugSelect('dog');
+  else if (e.key === '2') effectDebugSelect('bird');
+  else if (e.key === '3') effectDebugSelect('crab');
+  else if (e.key === 'Escape') exitEffectDebug();
+}
+
+function showEffectDebug() {
+  showScreen('screen-effect-debug');
+  const canvas = document.getElementById('canvas-effect-debug');
+  if (!canvas || !window.EffectsModule) return;
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+
+  _fxDebugActive = true;
+  _fxDebugPose   = null;
+  window.EffectsModule.initEffects(canvas);
+  window.addEventListener('keydown', _fxDebugOnKey);
+
+  const hands = _fxDebugHands();
+  const loop = () => {
+    if (!_fxDebugActive) return;
+    if (_fxDebugPose) {
+      // 最高段位（95点超）相当でエフェクトを常時発生させる
+      window.EffectsModule.updateEffect(_fxDebugPose, 96, hands, ctx, canvas.width, canvas.height);
+    }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+
+function exitEffectDebug() {
+  _fxDebugActive = false;
+  _fxDebugPose   = null;
+  window.removeEventListener('keydown', _fxDebugOnKey);
+  const canvas = document.getElementById('canvas-effect-debug');
+  if (canvas && window.EffectsModule) {
+    window.EffectsModule.clearEffects(canvas.getContext('2d'), canvas.width, canvas.height);
+  }
+  showScreen('screen-title');
+}
+
 async function startTutorial() {
   _gameAborted = false;
   if (allPoses.length === 0) await loadPoses();
@@ -1731,6 +1805,7 @@ function exitCalibrateScreen() {
 window.GameModule = {
   initGame, startGame, startTutorial, showResult, showArtCanvas,
   showCalibrateScreen, exitCalibrateScreen, goToTitle,
+  showEffectDebug, exitEffectDebug, effectDebugSelect,
   showZooMap, backToZooMap,
   calibSelectPose, calibSetHands, calibRegister, calibSaveDefault, calibReset,
 };

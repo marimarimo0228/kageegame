@@ -1,6 +1,6 @@
 // sw.js — Service Worker（Cache First 戦略）
 
-const CACHE_NAME = 'kagee-v9';
+const CACHE_NAME = 'kagee-v11';
 
 const PRECACHE_URLS = [
   '/',
@@ -13,6 +13,12 @@ const PRECACHE_URLS = [
   '/js/artCanvas.js',
   '/js/game.js',
   '/js/ranking.js',
+  '/js/effects.js',
+  '/js/tutorial.js',
+  '/js/zoo.js',
+  '/js/zooUI.js',
+  '/assets/hane.png',
+  '/assets/sounds/great-dog.mp3',
   '/poses/poses.json',
   '/areas.json',
   '/assets/silhouettes/dog.jpg',
@@ -26,7 +32,11 @@ const PRECACHE_URLS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+    caches.open(CACHE_NAME).then((cache) =>
+      // cache: 'no-cache' でサーバーに再検証させ、
+      // ブラウザHTTPキャッシュの古いファイルを取り込まないようにする
+      cache.addAll(PRECACHE_URLS.map((u) => new Request(u, { cache: 'no-cache' })))
+    )
   );
   self.skipWaiting();
 });
