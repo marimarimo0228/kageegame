@@ -72,8 +72,13 @@
        #screen-zoo-map  個人動物園マップ画面（スタート後のトップ画面）
   ══════════════════════════════════════════════ -->
   <section id="screen-zoo-map" style="display:none">
-    <div id="zoo-points-display" aria-live="polite">0 pt</div>
-    <div id="zoo-map-ground" class="zoo-map-ground" aria-label="個人動物園マップ"></div>
+    <div id="zoo-map-ground" class="zoo-map-ground" aria-label="個人動物園マップ">
+      <div id="zoo-map-image" class="zoo-map-image">
+        <div id="zoo-points-display" aria-live="polite">0 pt</div>
+      </div>
+    </div>
+    <button class="btn-secondary zoo-back-title-btn"
+            onclick="window.GameModule.goToTitle()">← タイトルへ</button>
   </section>
 
 
@@ -81,6 +86,7 @@
        #screen-area-intro  エリア選択後・カウントダウン前の演出画面
   ══════════════════════════════════════════════ -->
   <section id="screen-area-intro" style="display:none">
+    <button id="area-intro-back-btn" class="btn-secondary area-intro-back-btn">← ステージ選択に戻る</button>
     <div class="area-intro-content">
       <p class="area-intro-eyebrow">STAGE</p>
       <h2 id="area-intro-name" class="area-intro-name">--</h2>

@@ -23,6 +23,7 @@
   --zoo-dirt:      #B97B4A;
   --zoo-water:     #3FB6E0;
   --zoo-coral:     #E8574A;
+  --zoo-map-green: #7FC241; /* map.jpg の草原色（余白の補完に使用） */
   --zoo-bg-gradient: linear-gradient(180deg, #86D6EF 0%, #C7ECD2 55%, #E9F3CE 100%);
 }
 
@@ -322,23 +323,24 @@ section[id^="screen-"] {
   align-items: stretch;
   position: relative;
   padding: 0;
+  background: var(--zoo-bg-gradient);
 }
 
-/* 上部ヘッダー */
+/* 上部ヘッダー: 動物園の芝生をイメージした緑の帯 */
 .play-header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   padding: 0.45rem 0.9rem;
-  background: rgba(139, 94, 60, 0.05);
-  border-bottom: 1px dashed rgba(139, 94, 60, 0.3);
+  background: linear-gradient(180deg, var(--zoo-grass) 0%, var(--zoo-grass-dark) 100%);
+  border-bottom: 3px solid rgba(61, 43, 31, 0.25);
   flex-shrink: 0;
 }
 
 #timer-bar-track {
   flex: 1;
   height: 8px;
-  background: rgba(139, 94, 60, 0.12);
+  background: rgba(255, 255, 255, 0.4);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -353,9 +355,9 @@ section[id^="screen-"] {
 
 /* ゲーム中タイトルへボタン */
 .btn-to-title {
-  background: transparent;
-  color: var(--text-dim);
-  border: 1px solid var(--border);
+  background: rgba(253, 246, 227, 0.25);
+  color: #FFF6E0;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 20px;
   padding: 3px 12px;
   font-size: 0.72rem;
@@ -363,19 +365,21 @@ section[id^="screen-"] {
   font-family: inherit;
   cursor: pointer;
   flex-shrink: 0;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 .btn-to-title:hover {
-  color: #E8472A;
-  border-color: #E8472A;
+  background: rgba(253, 246, 227, 0.5);
+  color: var(--text);
+  border-color: #FFF6E0;
 }
 
 #question-number {
   font-size: 0.78rem;
-  color: var(--text-dim);
+  color: #FFF6E0;
   white-space: nowrap;
   letter-spacing: 0.08em;
   flex-shrink: 0;
+  text-shadow: 0 1px 2px rgba(61, 43, 31, 0.4);
 }
 
 /* メインエリア: 左右分割 */
@@ -395,8 +399,10 @@ section[id^="screen-"] {
 }
 
 .play-left {
-  background: #F8F0DB;
-  border-right: 2px dashed rgba(139, 94, 60, 0.3);
+  background:
+    linear-gradient(180deg, rgba(134, 214, 239, 0.35) 0%, rgba(253, 246, 227, 0.9) 40%, rgba(233, 243, 206, 0.9) 100%),
+    #F8F0DB;
+  border-right: 3px solid rgba(95, 166, 54, 0.45);
   padding: 1.2rem;
 }
 
@@ -408,7 +414,7 @@ section[id^="screen-"] {
   border-radius: 6px;
   box-shadow:
     0 0 0 3px #FDF6E3,
-    0 0 0 5px rgba(139, 94, 60, 0.25),
+    0 0 0 6px rgba(95, 166, 54, 0.55),
     4px 6px 16px rgba(61, 43, 31, 0.15);
 }
 
@@ -418,8 +424,8 @@ section[id^="screen-"] {
   overflow: hidden;
   box-shadow:
     inset 0 0 0 4px #FDF6E3,
-    inset 0 0 0 7px rgba(232, 71, 42, 0.55),
-    inset 0 0 0 9px rgba(139, 94, 60, 0.25),
+    inset 0 0 0 7px rgba(139, 203, 76, 0.7),
+    inset 0 0 0 9px rgba(95, 166, 54, 0.4),
     4px 6px 16px rgba(61, 43, 31, 0.15);
 }
 
@@ -563,33 +569,54 @@ section[id^="screen-"] {
    個人動物園マップ画面
 ══════════════════════════════════════════════════════ */
 #screen-zoo-map {
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  overflow: auto;
-  padding: 1.4rem 0 2.4rem;
+  padding: 0;
+  overflow: hidden;
+  background: var(--zoo-map-green);
 }
 
+/* 全画面の敷地。画像が届かない部分はマップと同じ草原色で補完する */
+.zoo-map-ground {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--zoo-map-green);
+}
+
+/* マップ画像本体。縦横比を保って画面いっぱいに収める（ホットスポットの%基準） */
+.zoo-map-image {
+  position: relative;
+  width: min(100vw, calc(100vh * 2304 / 1792));
+  aspect-ratio: 2304 / 1792;
+  background: url('assets/background/map.jpg') center / contain no-repeat;
+}
+
+/* 現在ポイント: マップの左上に重ねて表示 */
 #zoo-points-display {
-  flex-shrink: 0;
+  position: absolute;
+  top: 2.5%;
+  left: 2.5%;
+  z-index: 5;
   font-size: 1.3rem;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 1rem;
-  background: rgba(253, 246, 227, 0.85);
+  background: rgba(253, 246, 227, 0.88);
   padding: 0.35rem 1.1rem;
   border-radius: 20px;
-  box-shadow: 0 3px 8px rgba(61, 43, 31, 0.15);
+  box-shadow: 0 3px 8px rgba(61, 43, 31, 0.2);
 }
 
-.zoo-map-ground {
-  position: relative;
-  flex-shrink: 0;
-  width: min(1100px, 94vw);
-  aspect-ratio: 2304 / 1792;
-  background: url('assets/background/map.jpg') center / cover no-repeat;
-  border-radius: 20px;
-  box-shadow: 0 4px 14px rgba(61, 43, 31, 0.25), 0 0 0 6px rgba(253, 246, 227, 0.6);
+/* タイトル画面に戻るボタン: 右上に重ねて表示 */
+.zoo-back-title-btn {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  z-index: 10;
+  padding: 8px 20px;
+  font-size: 0.85rem;
+  background: rgba(253, 246, 227, 0.9);
 }
 
 /* タップ領域＝丸いホットスポット。写真の上に自然に馴染むよう半透明で表示 */
@@ -627,6 +654,25 @@ section[id^="screen-"] {
   animation-play-state: paused;
 }
 
+/* タップされたことがわかる演出: バウンド＋白いリングが波紋のように広がる */
+.zoo-area-box.zoo-area-tapped {
+  animation: zoo-spot-tap 0.42s ease-out both;
+}
+
+@keyframes zoo-spot-tap {
+  0% {
+    transform: translate(-50%, -50%) scale(0.85);
+    box-shadow: 0 4px 12px rgba(61, 43, 31, 0.25), 0 0 0 0 rgba(255, 255, 255, 0.95);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.1);
+    box-shadow: 0 4px 12px rgba(61, 43, 31, 0.25), 0 0 0 34px rgba(255, 255, 255, 0);
+  }
+}
+
 .zoo-area-label {
   font-weight: 700;
   font-size: clamp(0.62rem, 1.4vw, 0.82rem);
@@ -661,29 +707,81 @@ section[id^="screen-"] {
   border-radius: 8px;
 }
 
-/* エリア新規解放時の通知モーダル */
-.zoo-unlock-modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.85);
-  background: rgba(61, 43, 31, 0.94);
-  color: #FDF6E3;
-  padding: 1.4rem 2rem;
-  border-radius: 14px;
-  font-size: 1.05rem;
-  font-weight: 700;
-  text-align: center;
-  max-width: 80vw;
-  z-index: 100;
+/* ── ステージ解放演出（マップ帰還後） ───────────────────── */
+
+/* 背景を暗くするベール（#screen-zoo-map 内に重ねる） */
+.zoo-unlock-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: rgba(61, 43, 31, 0.55);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.4s ease;
+}
+.zoo-unlock-overlay.visible { opacity: 1; }
+
+.zoo-unlock-caption {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #FFF6E0;
+  font-size: clamp(1.2rem, 4.5vw, 2.2rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.35);
+  white-space: nowrap;
+  animation: unlock-caption-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-.zoo-unlock-modal.visible {
-  opacity: 1;
+@keyframes unlock-caption-pop {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.5) translateY(-14px); }
+  60%  { opacity: 1; transform: translateX(-50%) scale(1.12) translateY(0); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+}
+
+/* 対象ホットスポットを画面中央へズーム（--ux/--uy は JS が算出） */
+.zoo-area-box.zoo-unlock-zoom {
+  z-index: 60;
+  animation: none !important;
+  transform: translate(-50%, -50%) translate(var(--ux, 0), var(--uy, 0)) scale(2.4);
+  transition: transform 0.62s cubic-bezier(0.34, 1.4, 0.5, 1), filter 0.5s ease;
+}
+
+/* 錠前が外れて色づいた瞬間の輝きリング */
+.zoo-area-box.unlocked-reveal::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(255, 236, 150, 0.9);
+  animation: unlock-burst 0.85s ease-out;
+  pointer-events: none;
+}
+
+@keyframes unlock-burst {
+  from { box-shadow: 0 0 0 0   rgba(255, 236, 150, 0.9); }
+  to   { box-shadow: 0 0 0 62px rgba(255, 236, 150, 0);  }
+}
+
+/* 錠前がポロッと外れて落ちる */
+.zoo-area-lock-icon.lock-break {
+  animation: lock-break 0.5s ease-in forwards;
+}
+
+@keyframes lock-break {
+  0%   { transform: rotate(0) translateY(0);      opacity: 1; }
+  35%  { transform: rotate(-18deg) translateY(-4px); }
+  100% { transform: rotate(30deg) translateY(40px); opacity: 0; }
+}
+
+/* 中央から元の位置へ戻る */
+.zoo-area-box.zoo-unlock-returning {
+  z-index: 60;
+  animation: none !important;
   transform: translate(-50%, -50%) scale(1);
+  transition: transform 0.55s cubic-bezier(0.34, 1.4, 0.5, 1);
 }
 
 /* ══════════════════════════════════════════════════════
@@ -692,15 +790,42 @@ section[id^="screen-"] {
 #screen-area-intro {
   flex-direction: column;
   gap: 1.2rem;
-  background: linear-gradient(160deg, #FDF6E3 0%, #F3E3C5 100%);
+  background: url('assets/background/map.jpg') center / cover no-repeat var(--zoo-map-green);
+  cursor: pointer;
+}
+
+/* マップを見せたまま暗めのベールを掛けてステージ名を際立たせる */
+#screen-area-intro::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(61, 43, 31, 0.38);
+}
+
+/* ステージ選択（マップ）に戻るボタン: 左上 */
+.area-intro-back-btn {
+  position: absolute;
+  top: 1.2rem;
+  left: 1.2rem;
+  z-index: 2;
+  padding: 8px 20px;
+  font-size: 0.85rem;
+  background: rgba(253, 246, 227, 0.9);
   cursor: pointer;
 }
 
 .area-intro-content {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.8rem;
+  background: rgba(253, 246, 227, 0.92);
+  padding: 2.2rem 3.4rem;
+  border-radius: 22px;
+  box-shadow: 0 8px 24px rgba(61, 43, 31, 0.35), 0 0 0 5px rgba(255, 255, 255, 0.55);
+  animation: area-intro-bounce-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .area-intro-eyebrow {
