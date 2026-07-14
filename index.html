@@ -31,7 +31,13 @@
 
     <!-- 中央: タイトル + スタートボタン -->
     <div class="title-center">
-      <h1 class="game-title">影絵採点ゲーム</h1>
+      <h1 class="game-title" aria-label="影絵ZOO">
+        <span class="title-letter tl-1">影</span>
+        <span class="title-letter tl-2">絵</span>
+        <span class="title-letter tl-3 title-letter-en">Z</span>
+        <span class="title-letter tl-4 title-letter-en">O</span>
+        <span class="title-letter tl-5 title-letter-en">O</span>
+      </h1>
       <p class="title-sub">手のかたちで影をつくろう！</p>
       <button id="btn-start" class="btn-primary"
               onclick="window.GameModule.startGame()">

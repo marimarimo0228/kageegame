@@ -1,5 +1,5 @@
 // js/zooUI.js — 個人動物園マップ画面（#screen-zoo-map）の描画
-// areas.json の x, y は 1000×700px を想定した敷地マップ上の px 値をそのまま使う。
+// areas.json の x, y はマップ画像（assets/background/map.jpg）に対する百分率（0〜100）。
 
 // エリアに入れる動物種のアイコン（絵文字で代用）
 const ZOO_POSE_ICON = { dog: '🐕', bird: '🕊️', crab: '🦀' };
@@ -16,8 +16,10 @@ function _areaIcons(area) {
 function _buildAreaBox(area, currentPoints) {
   const box = document.createElement('div');
   box.className = 'zoo-area-box' + (area.unlocked ? '' : ' locked');
-  box.style.left = `${area.x}px`;
-  box.style.top  = `${area.y}px`;
+  box.style.left = `${area.x}%`;
+  box.style.top  = `${area.y}%`;
+  const poses = area.poses ?? [];
+  box.dataset.pose = poses.length === 1 ? poses[0] : 'mixed';
 
   const label = document.createElement('div');
   label.className   = 'zoo-area-label';

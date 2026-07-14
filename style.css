@@ -14,6 +14,16 @@
   --text-dim:      rgba(61, 43, 31, 0.5);
   --paper:         #FDF6E3;
   --ink:           #3D2B1F;
+
+  /* 動物園パレット（タイトル・マップ画像から抽出） */
+  --zoo-sky:       #6FCBEA;
+  --zoo-sky-deep:  #3FA8DC;
+  --zoo-grass:     #8BCB4C;
+  --zoo-grass-dark:#5FA636;
+  --zoo-dirt:      #B97B4A;
+  --zoo-water:     #3FB6E0;
+  --zoo-coral:     #E8574A;
+  --zoo-bg-gradient: linear-gradient(180deg, #86D6EF 0%, #C7ECD2 55%, #E9F3CE 100%);
 }
 
 /* ── リセット・基本 ─────────────────────────────────── */
@@ -43,7 +53,7 @@ section[id^="screen-"] {
   height: 100vh;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
+  background: var(--zoo-bg-gradient);
 }
 
 /* ── ボタン ─────────────────────────────────────────── */
@@ -97,7 +107,12 @@ section[id^="screen-"] {
   display: flex;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #F5E6C8 0%, #FDF6E3 30%, #FDF6E3 70%, #F0DFC0 100%);
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: clamp(2.6rem, 11vh, 6rem);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%),
+    url('assets/background/taitoru.jpg') center bottom / cover no-repeat;
 }
 
 /* 背景キャンバス（蓄積アート、薄く） */
@@ -106,27 +121,93 @@ section[id^="screen-"] {
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.12;
+  opacity: 0.08;
   pointer-events: none;
 }
 
-/* 中央コンテンツ */
+/* 中央コンテンツ（画像上部＝バナー付近に配置） */
 .title-center {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2.4rem;
+  gap: 1.6rem;
 }
 
+/* タイトル文字の後ろに白いハローを敷いて絵の上でも視認性を確保 */
 .game-title {
-  font-size: clamp(2rem, 7vw, 4.5rem);
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 0.06em;
+  font-size: clamp(2.1rem, 8vw, 5rem);
   font-weight: 900;
-  letter-spacing: 0.18em;
-  color: #E8472A;
-  text-shadow: 2px 3px 0 rgba(61, 43, 31, 0.15);
-  animation: title-stamp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  letter-spacing: 0.02em;
+}
+
+.game-title::before {
+  content: "";
+  position: absolute;
+  inset: -34px -24px;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0) 72%);
+  filter: blur(3px);
+  z-index: -1;
+}
+
+.title-letter {
+  display: inline-block;
+  color: #FFF6E0;
+  -webkit-text-stroke: 2.5px #3D2B1F;
+  paint-order: stroke fill;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.25);
+  opacity: 0;
+  animation:
+    letter-slide-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    letter-breathe 2.6s ease-in-out infinite;
+}
+
+/* 影絵(かげえ)＝赤系、ZOO＝木々・空・珊瑚のバナー配色で交互に */
+.tl-1 { color: #E8574A; }
+.tl-2 { color: #E8A020; }
+.tl-3 { color: #3FA8DC; }
+.tl-4 { color: #6EBA3C; }
+.tl-5 { color: #E8574A; }
+
+.tl-1 { animation-name: letter-slide-in-left,  letter-breathe; animation-delay: 0s,    1.1s; }
+.tl-2 { animation-name: letter-slide-in-right, letter-breathe; animation-delay: 0.09s, 1.19s; }
+.tl-3 { animation-name: letter-slide-in-left,  letter-breathe; animation-delay: 0.18s, 1.28s; }
+.tl-4 { animation-name: letter-slide-in-right, letter-breathe; animation-delay: 0.27s, 1.37s; }
+.tl-5 { animation-name: letter-slide-in-left,  letter-breathe; animation-delay: 0.36s, 1.46s; }
+
+.title-letter-en { font-family: system-ui, sans-serif; }
+
+@keyframes letter-slide-in-left {
+  0%   { opacity: 0; transform: translateX(-160%) scale(0.4) rotate(-10deg); }
+  65%  { opacity: 1; transform: translateX(8%)     scale(1.18) rotate(4deg); }
+  100% { opacity: 1; transform: translateX(0)      scale(1)    rotate(0deg); }
+}
+
+@keyframes letter-slide-in-right {
+  0%   { opacity: 0; transform: translateX(160%) scale(0.4) rotate(10deg); }
+  65%  { opacity: 1; transform: translateX(-8%)   scale(1.18) rotate(-4deg); }
+  100% { opacity: 1; transform: translateX(0)     scale(1)    rotate(0deg); }
+}
+
+@keyframes letter-breathe {
+  0%, 100% { transform: scale(1)     translateY(0); }
+  50%      { transform: scale(1.08)  translateY(-3px); }
+}
+
+.title-sub {
+  font-size: clamp(0.75rem, 2vw, 1rem);
+  color: var(--text);
+  background: rgba(253, 246, 227, 0.85);
+  padding: 3px 14px;
+  border-radius: 20px;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+  animation: title-stamp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.6s both;
 }
 
 @keyframes title-stamp {
@@ -134,12 +215,9 @@ section[id^="screen-"] {
   to   { transform: scale(1)   rotate(0deg);  opacity: 1; }
 }
 
-.title-sub {
-  font-size: clamp(0.75rem, 2vw, 1rem);
-  color: var(--accent-yellow);
-  letter-spacing: 0.2em;
-  margin-top: -1.2rem;
-  font-weight: 600;
+.title-center .btn-primary,
+.title-center .btn-secondary {
+  border: 3px solid rgba(255, 255, 255, 0.85);
 }
 
 /* カメラプレビュー（左下） */
@@ -165,6 +243,10 @@ section[id^="screen-"] {
   z-index: 1;
   text-align: right;
   min-width: 120px;
+  background: rgba(253, 246, 227, 0.82);
+  padding: 0.6rem 0.9rem;
+  border-radius: 14px;
+  box-shadow: 0 4px 10px rgba(61, 43, 31, 0.18);
 }
 
 .ranking-label {
@@ -212,7 +294,7 @@ section[id^="screen-"] {
 ══════════════════════════════════════════════════════ */
 
 #screen-countdown {
-  background: var(--bg);
+  background: var(--zoo-bg-gradient);
 }
 
 #countdown-number {
@@ -494,66 +576,89 @@ section[id^="screen-"] {
   font-weight: 700;
   color: var(--text);
   margin-bottom: 1rem;
+  background: rgba(253, 246, 227, 0.85);
+  padding: 0.35rem 1.1rem;
+  border-radius: 20px;
+  box-shadow: 0 3px 8px rgba(61, 43, 31, 0.15);
 }
 
 .zoo-map-ground {
   position: relative;
   flex-shrink: 0;
-  width: 1000px;
-  aspect-ratio: 1000 / 700;
-  background: #D9E5C1;
+  width: min(1100px, 94vw);
+  aspect-ratio: 2304 / 1792;
+  background: url('assets/background/map.jpg') center / cover no-repeat;
   border-radius: 20px;
-  box-shadow: 0 4px 14px rgba(61, 43, 31, 0.15);
+  box-shadow: 0 4px 14px rgba(61, 43, 31, 0.25), 0 0 0 6px rgba(253, 246, 227, 0.6);
 }
 
+/* タップ領域＝丸いホットスポット。写真の上に自然に馴染むよう半透明で表示 */
 .zoo-area-box {
   position: absolute;
-  width: 140px;
-  height: 140px;
+  width: clamp(72px, 10vw, 118px);
+  aspect-ratio: 1;
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
-  padding: 0.6rem;
-  text-align: center;
-  background: #E8D5B5;
-  border: 2px solid rgba(61, 43, 31, 0.3);
-  border-radius: 18px;
-  box-shadow: 0 4px 10px rgba(61, 43, 31, 0.18);
+  gap: 0.25rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.55) 62%, rgba(255,255,255,0) 100%);
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 12px rgba(61, 43, 31, 0.25), 0 0 0 3px var(--zoo-spot-color, rgba(232, 160, 32, 0.55));
   cursor: pointer;
   transition: transform 0.15s ease;
+  animation: zoo-spot-breathe 2.6s ease-in-out infinite;
+}
+
+.zoo-area-box[data-pose="dog"]   { --zoo-spot-color: rgba(185, 123, 74, 0.6); }
+.zoo-area-box[data-pose="bird"]  { --zoo-spot-color: rgba(63, 168, 220, 0.6); }
+.zoo-area-box[data-pose="crab"]  { --zoo-spot-color: rgba(232, 87, 74, 0.6); }
+.zoo-area-box[data-pose="mixed"] { --zoo-spot-color: rgba(232, 160, 32, 0.6); }
+
+@keyframes zoo-spot-breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50%      { transform: translate(-50%, -50%) scale(1.05); }
 }
 
 .zoo-area-box:not(.locked):hover {
-  transform: translate(-50%, -50%) scale(1.06);
+  transform: translate(-50%, -50%) scale(1.14);
+  animation-play-state: paused;
 }
 
 .zoo-area-label {
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: clamp(0.62rem, 1.4vw, 0.82rem);
   color: var(--text);
-  line-height: 1.25;
+  line-height: 1.2;
+  background: rgba(253, 246, 227, 0.92);
+  padding: 1px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
 }
 
 .zoo-area-icons {
-  font-size: 1.35rem;
+  font-size: clamp(1.1rem, 2.4vw, 1.5rem);
 }
 
 .zoo-area-box.locked {
-  opacity: 0.35;
-  filter: grayscale(0.7) brightness(0.7);
+  opacity: 0.55;
+  filter: grayscale(0.6) brightness(0.85);
   cursor: not-allowed;
+  animation: none;
 }
 
 .zoo-area-lock-icon {
-  font-size: 1.7rem;
+  font-size: 1.5rem;
 }
 
 .zoo-area-condition {
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   color: var(--text-dim);
+  background: rgba(253, 246, 227, 0.92);
+  padding: 0 6px;
+  border-radius: 8px;
 }
 
 /* エリア新規解放時の通知モーダル */
@@ -882,7 +987,7 @@ section[id^="screen-"] {
 
 #screen-art {
   position: relative;
-  background: var(--bg);
+  background: var(--zoo-bg-gradient);
 }
 
 #canvas-art-full {

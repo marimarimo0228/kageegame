@@ -1,6 +1,6 @@
 // sw.js — Service Worker（Cache First 戦略）
 
-const CACHE_NAME = 'kagee-v6';
+const CACHE_NAME = 'kagee-v7';
 
 const PRECACHE_URLS = [
   '/',
@@ -14,9 +14,12 @@ const PRECACHE_URLS = [
   '/js/game.js',
   '/js/ranking.js',
   '/poses/poses.json',
+  '/areas.json',
   '/assets/silhouettes/dog.jpg',
   '/assets/silhouettes/bird.jpg',
   '/assets/silhouettes/crab.jpg',
+  '/assets/background/taitoru.jpg',
+  '/assets/background/map.jpg',
 ];
 
 // ─── install: 全アセットを事前キャッシュ ─────────────────────
