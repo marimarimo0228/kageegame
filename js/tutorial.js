@@ -1,5 +1,3 @@
-const TUTORIAL_DONE_KEY = 'kagee_tutorial_done';
-
 const TutorialCharacter = {
   // チュートリアルキャラクター画像。assets/ に追加したJPEGを使います。
   imageUrl: 'assets/tutorial-character(挨拶).png',
@@ -33,8 +31,6 @@ const TutorialCharacter = {
     if (slot) slot.style.display = 'none';
   },
 };
-
-let _tutorialFallbackDone = false;
 
 // ─── ステップオーバーレイ ─────────────────────────────────
 
@@ -103,28 +99,6 @@ function hidePlayHint() {
   hint.classList.remove('visible');
 }
 
-// ─── 初回チェック ─────────────────────────────────────────
-
-function isFirstPlay() {
-  try {
-    return !localStorage.getItem(TUTORIAL_DONE_KEY);
-  }
-  catch {
-    // localStorage が使えない場合は初回プレイとみなす
-    return !_tutorialFallbackDone;
-  }
-}
-
-function markTutorialDone() {
-  try { localStorage.setItem(TUTORIAL_DONE_KEY, '1'); }
-  catch { _tutorialFallbackDone = true; }
-}
-
-function resetTutorial() {
-  try { localStorage.removeItem(TUTORIAL_DONE_KEY); }
-  catch { _tutorialFallbackDone = false; }
-}
-
 // ─── チュートリアル本体 ──────────────────────────────────
 
 async function runTutorial() {
@@ -157,9 +131,6 @@ async function runTutorial() {
 }
 
 window.TutorialModule = {
-  isFirstPlay,
-  markTutorialDone,
-  resetTutorial,
   runTutorial,
   showPlayHint,
   hidePlayHint,
