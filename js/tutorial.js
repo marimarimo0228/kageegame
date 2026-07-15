@@ -18,9 +18,12 @@ const TutorialCharacter = {
       }
       img.src = imageUrl;
       img.style.display = 'block';
-      img.style.maxWidth = '100%';
-      img.style.maxHeight = '100%';
+      img.style.width = '220px';
+      img.style.maxWidth = '220px';
+      img.style.height = 'auto';
+      img.style.maxHeight = '420px';
       img.style.objectFit = 'contain';
+      img.style.objectPosition = 'center bottom';
       img.style.background = 'transparent';
       slot.style.display = 'flex';
     }
