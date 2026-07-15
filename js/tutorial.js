@@ -19,6 +19,11 @@ const TutorialCharacter = {
         slot.appendChild(img);
       }
       img.src = imageUrl;
+      img.style.display = 'block';
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '100%';
+      img.style.objectFit = 'contain';
+      img.style.background = 'transparent';
       slot.style.display = 'flex';
     }
   },
