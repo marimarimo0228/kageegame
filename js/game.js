@@ -1053,11 +1053,20 @@ async function startAreaPlay(area) {
     const qScore = scores[scores.length - 1];
     const qPose  = allPoses[questionOrder[i]] ? allPoses[questionOrder[i]].name : '';
     if (window.ZooModule && qPose && qScore != null) {
-      const result = await window.ZooModule.addResult(qScore, qPose);
-      if (result && result.newlyUnlockedAreas && result.newlyUnlockedAreas.length) {
-        lastSessionUnlocks.push(...result.newlyUnlockedAreas);
-      }
+      // ポイント・動物を加算（エリア解放は星ベースなので下でまとめて判定）
+      await window.ZooModule.addResult(qScore, qPose);
     }
+  }
+
+  // このエリアの平均スコアを星として記録し、星の合計数で解放判定する。
+  // 既存ベストより高い場合のみ更新されるため、常に高い方の星が残る。
+  if (currentArea && window.ZooModule) {
+    const avg = scores.length
+      ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length)
+      : 0;
+    window.ZooModule.recordAreaBestScore(currentArea.id, avg);
+    const newlyUnlocked = await window.ZooModule.checkUnlocks();
+    if (newlyUnlocked.length) lastSessionUnlocks.push(...newlyUnlocked);
   }
 
   showResult();

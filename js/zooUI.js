@@ -9,14 +9,32 @@ function _areaIcons(area) {
 }
 
 /**
+ * エリアの獲得星（上限3つ）を表す要素を作る。
+ * earned 個だけ点灯し、残りは薄い星で「達成余地」を示す。
+ * @param {number} earned  獲得星数(0〜3)
+ */
+function _buildAreaStars(earned) {
+  const wrap = document.createElement('div');
+  wrap.className = 'zoo-area-stars';
+  const n = Math.max(0, Math.min(3, earned | 0));
+  for (let i = 0; i < 3; i++) {
+    const star = document.createElement('span');
+    star.className   = 'zoo-star' + (i < n ? ' earned' : '');
+    star.textContent = '★';
+    wrap.appendChild(star);
+  }
+  return wrap;
+}
+
+/**
  * 1エリア分のボックス要素を組み立てる。
- * @param {object} area          getAreas() の1エリア分（unlocked フラグ込み）
- * @param {number} currentPoints 現在の合計ポイント（不足分の表示に使用）
+ * @param {object} area         getAreas() の1エリア分（unlocked フラグ込み）
+ * @param {number} currentStars 現在の合計星数（解放までの不足分の表示に使用）
  * @param {{ forceLocked?: boolean }} [opts]
  *        forceLocked: データ上は解放済みでも見た目だけロック状態で描画する
  *        （マップ帰還後の「解放演出」の起点にするため）。
  */
-function _buildAreaBox(area, currentPoints, opts = {}) {
+function _buildAreaBox(area, currentStars, opts = {}) {
   const forceLocked = opts.forceLocked === true;
   const showLocked  = forceLocked || !area.unlocked;
 
@@ -34,6 +52,9 @@ function _buildAreaBox(area, currentPoints, opts = {}) {
   box.appendChild(label);
 
   if (!showLocked) {
+    // ステージ上部にそのエリアの獲得星（最終スコアで変動・上限3つ）を表示
+    box.appendChild(_buildAreaStars(area.stars ?? 0));
+
     const icons = document.createElement('div');
     icons.className   = 'zoo-area-icons';
     icons.textContent = _areaIcons(area);
@@ -54,12 +75,12 @@ function _buildAreaBox(area, currentPoints, opts = {}) {
     lockIcon.textContent = '🔒';
     box.appendChild(lockIcon);
 
-    // forceLocked（解放演出の起点）は既に条件達成済みなので不足ポイントは出さない
+    // forceLocked（解放演出の起点）は既に条件達成済みなので不足分は出さない
     if (!forceLocked) {
-      const remain = Math.max(0, (area.requiredPoints ?? 0) - currentPoints);
+      const remain = Math.max(0, (area.requiredStars ?? 0) - currentStars);
       const condition = document.createElement('div');
       condition.className   = 'zoo-area-condition';
-      condition.textContent = `あと${remain}pt`;
+      condition.textContent = `⭐️あと${remain}`;
       box.appendChild(condition);
     }
   }
@@ -82,10 +103,13 @@ function renderZooMap(zooData, areas, pendingUnlocks = []) {
               || document.getElementById('zoo-map-ground');
   if (!ground) return;
 
+  // 解放条件は星ベース。現在の合計星数をロック中エリアの不足分表示に使う。
+  const totalStars = areas.reduce((sum, a) => sum + (a.stars ?? 0), 0);
+
   ground.querySelectorAll('.zoo-area-box').forEach((el) => el.remove());
   for (const area of areas) {
     const forceLocked = pendingUnlocks.includes(area.id);
-    ground.appendChild(_buildAreaBox(area, zooData.points, { forceLocked }));
+    ground.appendChild(_buildAreaBox(area, totalStars, { forceLocked }));
   }
 }
 

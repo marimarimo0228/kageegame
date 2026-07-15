@@ -1,7 +1,7 @@
 [
-  { "id": "entrance",    "label": "入口広場",       "requiredPoints": 0,    "poses": ["dog","bird","crab"], "x": 54, "y": 20 },
-  { "id": "dog-yard",    "label": "イヌの遊び場",   "requiredPoints": 300,  "poses": ["dog"],  "timeLimit": 10, "x": 16, "y": 23 },
-  { "id": "bird-sky",    "label": "ハトの空",       "requiredPoints": 800,  "poses": ["bird"], "minScore": 90, "x": 90, "y": 88 },
-  { "id": "crab-beach",  "label": "カニの浜辺",     "requiredPoints": 1500, "poses": ["crab"], "requireStreak": 2, "x": 87, "y": 52 },
-  { "id": "secret-room", "label": "ひみつの部屋",   "requiredPoints": 3000, "poses": ["dog","bird","crab"], "combo": true, "x": 92, "y": 17 }
+  { "id": "entrance",    "label": "入口広場",       "requiredStars": 0, "poses": ["dog","bird","crab"], "x": 54, "y": 20 },
+  { "id": "dog-yard",    "label": "イヌの遊び場",   "requiredStars": 2, "poses": ["dog"],  "timeLimit": 10, "x": 16, "y": 23 },
+  { "id": "bird-sky",    "label": "ハトの空",       "requiredStars": 4, "poses": ["bird"], "minScore": 90, "x": 90, "y": 88 },
+  { "id": "crab-beach",  "label": "カニの浜辺",     "requiredStars": 6, "poses": ["crab"], "requireStreak": 2, "x": 87, "y": 52 },
+  { "id": "secret-room", "label": "ひみつの部屋",   "requiredStars": 9, "poses": ["dog","bird","crab"], "combo": true, "x": 92, "y": 17 }
 ]
