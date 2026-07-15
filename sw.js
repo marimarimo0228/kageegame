@@ -1,6 +1,6 @@
 // sw.js — Service Worker（Cache First 戦略）
 
-const CACHE_NAME = 'kagee-v13';
+const CACHE_NAME = 'kagee-v15';
 
 const PRECACHE_URLS = [
   '/',

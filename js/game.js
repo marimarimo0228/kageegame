@@ -952,8 +952,12 @@ async function showZooMap(opts = {}) {
   const zooData = window.ZooModule.loadZoo();
   const areas   = await window.ZooModule.getAreas();
 
+  // 左上には獲得した星の合計数を表示する（renderZooMap でも同値に更新される）
   const ptsEl = document.getElementById('zoo-points-display');
-  if (ptsEl) ptsEl.textContent = `${zooData.points} pt`;
+  if (ptsEl) {
+    const totalStars = areas.reduce((sum, a) => sum + (a.stars ?? 0), 0);
+    ptsEl.textContent = `⭐️ ${totalStars}`;
+  }
 
   window.ZooUIModule.renderZooMap(zooData, areas, opts.pendingUnlocks ?? []);
   window.ZooUIModule.onAreaSelected = (areaId) => {

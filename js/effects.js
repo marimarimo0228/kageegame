@@ -204,7 +204,7 @@ function updateParticles() {
     p.phase += 0.07;
     p.vx    *= 0.96;                            // 空気抵抗で横速度を徐々に減衰
     p.vy    += 0.06;                            // 弱い重力でゆっくり落下に転じる
-    if (p.vy > 1.1) p.vy = 1.1;                 // 終端速度を抑えてひらひら感を出す
+    if (p.vy > 1.6) p.vy = 1.6;                 // 終端速度（落下速度をやや速めに）
     p.x     += p.vx + Math.sin(p.phase) * p.swayAmp; // 左右にゆらゆら揺れながら落ちる
     p.y     += p.vy;
     p.life  += 1;
@@ -255,8 +255,8 @@ function drawBirdFeathers(ctx) {
   ctx.scale(-1, 1);
   for (const p of birdFeathers) {
     const ratio = p.life / p.maxLife;
-    // 後半は不透明度を下げながら消えていく
-    ctx.globalAlpha = ratio < 0.55 ? 1 : Math.max(0, 1 - (ratio - 0.55) / 0.45);
+    // 早めに不透明度を下げながら消えていく
+    ctx.globalAlpha = ratio < 0.35 ? 1 : Math.max(0, 1 - (ratio - 0.35) / 0.65);
     ctx.save();
     ctx.translate(-p.x, p.y);  // x を反転
     ctx.rotate(p.angle + Math.sin(p.phase) * 0.45); // 揺れに合わせて傾きも往復

@@ -94,17 +94,18 @@ function _buildAreaBox(area, currentStars, opts = {}) {
  * @param {Array<object>} areas  getAreas() の戻り値（x, y 座標・unlocked フラグ込み）
  */
 function renderZooMap(zooData, areas, pendingUnlocks = []) {
+  // 解放条件は星ベース。現在の合計星数をロック中エリアの不足分表示に使う。
+  const totalStars = areas.reduce((sum, a) => sum + (a.stars ?? 0), 0);
+
+  // 左上には獲得した星の合計数を表示する
   const ptsEl = document.getElementById('zoo-points-display');
-  if (ptsEl) ptsEl.textContent = `${zooData.points} pt`;
+  if (ptsEl) ptsEl.textContent = `⭐️ ${totalStars}`;
 
   // ホットスポットはマップ画像要素（#zoo-map-image）に重ねる。
-  // ポイント表示など画像内の他要素を消さないよう、エリアボックスだけ差し替える。
+  // 星表示など画像内の他要素を消さないよう、エリアボックスだけ差し替える。
   const ground = document.getElementById('zoo-map-image')
               || document.getElementById('zoo-map-ground');
   if (!ground) return;
-
-  // 解放条件は星ベース。現在の合計星数をロック中エリアの不足分表示に使う。
-  const totalStars = areas.reduce((sum, a) => sum + (a.stars ?? 0), 0);
 
   ground.querySelectorAll('.zoo-area-box').forEach((el) => el.remove());
   for (const area of areas) {
