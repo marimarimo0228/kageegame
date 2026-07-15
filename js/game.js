@@ -923,9 +923,8 @@ async function startGame() {
     window.ClassifierModule.loadModel().catch(() => {});  // ノンブロッキング
   }
 
-  // 初回プレイはチュートリアルを先に実行する
-  if (window.TutorialModule && window.TutorialModule.isFirstPlay()) {
-    window.TutorialModule.markTutorialDone();
+  // チュートリアルを毎回先に実行する
+  if (window.TutorialModule) {
     await window.TutorialModule.runTutorial();
   }
 
