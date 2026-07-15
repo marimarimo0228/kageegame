@@ -14,6 +14,17 @@
   --text-dim:      rgba(61, 43, 31, 0.5);
   --paper:         #FDF6E3;
   --ink:           #3D2B1F;
+
+  /* 動物園パレット（タイトル・マップ画像から抽出） */
+  --zoo-sky:       #6FCBEA;
+  --zoo-sky-deep:  #3FA8DC;
+  --zoo-grass:     #8BCB4C;
+  --zoo-grass-dark:#5FA636;
+  --zoo-dirt:      #B97B4A;
+  --zoo-water:     #3FB6E0;
+  --zoo-coral:     #E8574A;
+  --zoo-map-green: #7FC241; /* map.jpg の草原色（余白の補完に使用） */
+  --zoo-bg-gradient: linear-gradient(180deg, #86D6EF 0%, #C7ECD2 55%, #E9F3CE 100%);
 }
 
 /* ── リセット・基本 ─────────────────────────────────── */
@@ -43,7 +54,7 @@ section[id^="screen-"] {
   height: 100vh;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
+  background: var(--zoo-bg-gradient);
 }
 
 /* ── ボタン ─────────────────────────────────────────── */
@@ -97,7 +108,12 @@ section[id^="screen-"] {
   display: flex;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #F5E6C8 0%, #FDF6E3 30%, #FDF6E3 70%, #F0DFC0 100%);
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: clamp(2.6rem, 11vh, 6rem);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%),
+    url('assets/background/taitoru.jpg') center bottom / cover no-repeat;
 }
 
 /* 背景キャンバス（蓄積アート、薄く） */
@@ -106,32 +122,93 @@ section[id^="screen-"] {
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.12;
+  opacity: 0.08;
   pointer-events: none;
 }
 
-/* 中央コンテンツ */
+/* 中央コンテンツ（画像上部＝バナー付近に配置） */
 .title-center {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2.4rem;
+  gap: 1.6rem;
 }
 
+/* タイトル文字の後ろに白いハローを敷いて絵の上でも視認性を確保 */
 .game-title {
-  width: min(72vw, 520px);
-  height: auto;
-  max-height: 22vh;
-  object-fit: contain;
-  display: block;
-  font-size: clamp(2rem, 7vw, 4.5rem);
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 0.06em;
+  font-size: clamp(2.1rem, 8vw, 5rem);
   font-weight: 900;
-  letter-spacing: 0.18em;
-  color: #E8472A;
-  text-shadow: 2px 3px 0 rgba(61, 43, 31, 0.15);
-  animation: title-stamp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  letter-spacing: 0.02em;
+}
+
+.game-title::before {
+  content: "";
+  position: absolute;
+  inset: -34px -24px;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0) 72%);
+  filter: blur(3px);
+  z-index: -1;
+}
+
+.title-letter {
+  display: inline-block;
+  color: #FFF6E0;
+  -webkit-text-stroke: 2.5px #3D2B1F;
+  paint-order: stroke fill;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.25);
+  opacity: 0;
+  animation:
+    letter-slide-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    letter-breathe 2.6s ease-in-out infinite;
+}
+
+/* 影絵(かげえ)＝赤系、ZOO＝木々・空・珊瑚のバナー配色で交互に */
+.tl-1 { color: #E8574A; }
+.tl-2 { color: #E8A020; }
+.tl-3 { color: #3FA8DC; }
+.tl-4 { color: #6EBA3C; }
+.tl-5 { color: #E8574A; }
+
+.tl-1 { animation-name: letter-slide-in-left,  letter-breathe; animation-delay: 0s,    1.1s; }
+.tl-2 { animation-name: letter-slide-in-right, letter-breathe; animation-delay: 0.09s, 1.19s; }
+.tl-3 { animation-name: letter-slide-in-left,  letter-breathe; animation-delay: 0.18s, 1.28s; }
+.tl-4 { animation-name: letter-slide-in-right, letter-breathe; animation-delay: 0.27s, 1.37s; }
+.tl-5 { animation-name: letter-slide-in-left,  letter-breathe; animation-delay: 0.36s, 1.46s; }
+
+.title-letter-en { font-family: system-ui, sans-serif; }
+
+@keyframes letter-slide-in-left {
+  0%   { opacity: 0; transform: translateX(-160%) scale(0.4) rotate(-10deg); }
+  65%  { opacity: 1; transform: translateX(8%)     scale(1.18) rotate(4deg); }
+  100% { opacity: 1; transform: translateX(0)      scale(1)    rotate(0deg); }
+}
+
+@keyframes letter-slide-in-right {
+  0%   { opacity: 0; transform: translateX(160%) scale(0.4) rotate(10deg); }
+  65%  { opacity: 1; transform: translateX(-8%)   scale(1.18) rotate(-4deg); }
+  100% { opacity: 1; transform: translateX(0)     scale(1)    rotate(0deg); }
+}
+
+@keyframes letter-breathe {
+  0%, 100% { transform: scale(1)     translateY(0); }
+  50%      { transform: scale(1.08)  translateY(-3px); }
+}
+
+.title-sub {
+  font-size: clamp(0.75rem, 2vw, 1rem);
+  color: var(--text);
+  background: rgba(253, 246, 227, 0.85);
+  padding: 3px 14px;
+  border-radius: 20px;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+  animation: title-stamp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.6s both;
 }
 
 @keyframes title-stamp {
@@ -139,12 +216,9 @@ section[id^="screen-"] {
   to   { transform: scale(1)   rotate(0deg);  opacity: 1; }
 }
 
-.title-sub {
-  font-size: clamp(0.75rem, 2vw, 1rem);
-  color: var(--accent-yellow);
-  letter-spacing: 0.2em;
-  margin-top: -1.2rem;
-  font-weight: 600;
+.title-center .btn-primary,
+.title-center .btn-secondary {
+  border: 3px solid rgba(255, 255, 255, 0.85);
 }
 
 /* カメラプレビュー（左下） */
@@ -170,6 +244,10 @@ section[id^="screen-"] {
   z-index: 1;
   text-align: right;
   min-width: 120px;
+  background: rgba(253, 246, 227, 0.82);
+  padding: 0.6rem 0.9rem;
+  border-radius: 14px;
+  box-shadow: 0 4px 10px rgba(61, 43, 31, 0.18);
 }
 
 .ranking-label {
@@ -217,7 +295,7 @@ section[id^="screen-"] {
 ══════════════════════════════════════════════════════ */
 
 #screen-countdown {
-  background: var(--bg);
+  background: var(--zoo-bg-gradient);
 }
 
 #countdown-number {
@@ -245,23 +323,24 @@ section[id^="screen-"] {
   align-items: stretch;
   position: relative;
   padding: 0;
+  background: var(--zoo-bg-gradient);
 }
 
-/* 上部ヘッダー */
+/* 上部ヘッダー: 動物園の芝生をイメージした緑の帯 */
 .play-header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   padding: 0.45rem 0.9rem;
-  background: rgba(139, 94, 60, 0.05);
-  border-bottom: 1px dashed rgba(139, 94, 60, 0.3);
+  background: linear-gradient(180deg, var(--zoo-grass) 0%, var(--zoo-grass-dark) 100%);
+  border-bottom: 3px solid rgba(61, 43, 31, 0.25);
   flex-shrink: 0;
 }
 
 #timer-bar-track {
   flex: 1;
   height: 8px;
-  background: rgba(139, 94, 60, 0.12);
+  background: rgba(255, 255, 255, 0.4);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -276,9 +355,9 @@ section[id^="screen-"] {
 
 /* ゲーム中タイトルへボタン */
 .btn-to-title {
-  background: transparent;
-  color: var(--text-dim);
-  border: 1px solid var(--border);
+  background: rgba(253, 246, 227, 0.25);
+  color: #FFF6E0;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 20px;
   padding: 3px 12px;
   font-size: 0.72rem;
@@ -286,19 +365,21 @@ section[id^="screen-"] {
   font-family: inherit;
   cursor: pointer;
   flex-shrink: 0;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 .btn-to-title:hover {
-  color: #E8472A;
-  border-color: #E8472A;
+  background: rgba(253, 246, 227, 0.5);
+  color: var(--text);
+  border-color: #FFF6E0;
 }
 
 #question-number {
   font-size: 0.78rem;
-  color: var(--text-dim);
+  color: #FFF6E0;
   white-space: nowrap;
   letter-spacing: 0.08em;
   flex-shrink: 0;
+  text-shadow: 0 1px 2px rgba(61, 43, 31, 0.4);
 }
 
 /* メインエリア: 左右分割 */
@@ -318,8 +399,10 @@ section[id^="screen-"] {
 }
 
 .play-left {
-  background: #F8F0DB;
-  border-right: 2px dashed rgba(139, 94, 60, 0.3);
+  background:
+    linear-gradient(180deg, rgba(134, 214, 239, 0.35) 0%, rgba(253, 246, 227, 0.9) 40%, rgba(233, 243, 206, 0.9) 100%),
+    #F8F0DB;
+  border-right: 3px solid rgba(95, 166, 54, 0.45);
   padding: 1.2rem;
 }
 
@@ -331,12 +414,19 @@ section[id^="screen-"] {
   border-radius: 6px;
   box-shadow:
     0 0 0 3px #FDF6E3,
-    0 0 0 5px rgba(139, 94, 60, 0.25),
+    0 0 0 6px rgba(95, 166, 54, 0.55),
     4px 6px 16px rgba(61, 43, 31, 0.15);
 }
 
 .play-right {
   position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 4px #FDF6E3,
+    inset 0 0 0 7px rgba(139, 203, 76, 0.7),
+    inset 0 0 0 9px rgba(95, 166, 54, 0.4),
+    4px 6px 16px rgba(61, 43, 31, 0.15);
 }
 
 #canvas-camera {
@@ -374,6 +464,21 @@ section[id^="screen-"] {
   transition: color 0.15s;
   white-space: nowrap;
   z-index: 10;
+}
+
+/* リアルタイムスコアの段位ラベル（GOOD/GREAT/PERFECT） */
+#score-display.tier-good    { color: #3498DB; }
+#score-display.tier-great   { color: #5DCAA5; }
+#score-display.tier-perfect { color: #E8472A; }
+
+#score-display.label-pop {
+  animation: score-label-pop-anim 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes score-label-pop-anim {
+  0%   { transform: translateX(-50%) scale(0.6); }
+  60%  { transform: translateX(-50%) scale(1.28); }
+  100% { transform: translateX(-50%) scale(1); }
 }
 
 /* 確率バー */
@@ -438,13 +543,322 @@ section[id^="screen-"] {
   background: rgba(253, 246, 227, 0.88);
   letter-spacing: 0.04em;
   z-index: 20;
-  animation: flash-in 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
   text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.12);
 }
 
-@keyframes flash-in {
-  from { opacity: 0; transform: scale(0.65); }
-  to   { opacity: 1; transform: scale(1);    }
+/* 残り3秒の緊張感演出（赤いビネットが脈打つ） */
+#timer-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+  opacity: 0;
+}
+
+#timer-vignette.active {
+  opacity: 1;
+  animation: vignette-pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes vignette-pulse {
+  0%, 100% { box-shadow: inset 0 0 60px 10px rgba(224, 60, 60, 0.35); }
+  50%      { box-shadow: inset 0 0 100px 25px rgba(224, 60, 60, 0.6); }
+}
+
+/* ══════════════════════════════════════════════════════
+   個人動物園マップ画面
+══════════════════════════════════════════════════════ */
+#screen-zoo-map {
+  padding: 0;
+  overflow: hidden;
+  background: var(--zoo-map-green);
+}
+
+/* 全画面の敷地。画像が届かない部分はマップと同じ草原色で補完する */
+.zoo-map-ground {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--zoo-map-green);
+}
+
+/* マップ画像本体。縦横比を保って画面いっぱいに収める（ホットスポットの%基準） */
+.zoo-map-image {
+  position: relative;
+  width: min(100vw, calc(100vh * 2304 / 1792));
+  aspect-ratio: 2304 / 1792;
+  background: url('assets/background/map.jpg') center / contain no-repeat;
+}
+
+/* 現在ポイント: マップの左上に重ねて表示 */
+#zoo-points-display {
+  position: absolute;
+  top: 2.5%;
+  left: 2.5%;
+  z-index: 5;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(253, 246, 227, 0.88);
+  padding: 0.35rem 1.1rem;
+  border-radius: 20px;
+  box-shadow: 0 3px 8px rgba(61, 43, 31, 0.2);
+}
+
+/* タイトル画面に戻るボタン: 右上に重ねて表示 */
+.zoo-back-title-btn {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  z-index: 10;
+  padding: 8px 20px;
+  font-size: 0.85rem;
+  background: rgba(253, 246, 227, 0.9);
+}
+
+/* タップ領域＝丸いホットスポット。写真の上に自然に馴染むよう半透明で表示 */
+.zoo-area-box {
+  position: absolute;
+  width: clamp(72px, 10vw, 118px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.55) 62%, rgba(255,255,255,0) 100%);
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 12px rgba(61, 43, 31, 0.25), 0 0 0 3px var(--zoo-spot-color, rgba(232, 160, 32, 0.55));
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  animation: zoo-spot-breathe 2.6s ease-in-out infinite;
+}
+
+.zoo-area-box[data-pose="dog"]   { --zoo-spot-color: rgba(185, 123, 74, 0.6); }
+.zoo-area-box[data-pose="bird"]  { --zoo-spot-color: rgba(63, 168, 220, 0.6); }
+.zoo-area-box[data-pose="crab"]  { --zoo-spot-color: rgba(232, 87, 74, 0.6); }
+.zoo-area-box[data-pose="mixed"] { --zoo-spot-color: rgba(232, 160, 32, 0.6); }
+
+@keyframes zoo-spot-breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50%      { transform: translate(-50%, -50%) scale(1.05); }
+}
+
+.zoo-area-box:not(.locked):hover {
+  transform: translate(-50%, -50%) scale(1.14);
+  animation-play-state: paused;
+}
+
+/* タップされたことがわかる演出: バウンド＋白いリングが波紋のように広がる */
+.zoo-area-box.zoo-area-tapped {
+  animation: zoo-spot-tap 0.42s ease-out both;
+}
+
+@keyframes zoo-spot-tap {
+  0% {
+    transform: translate(-50%, -50%) scale(0.85);
+    box-shadow: 0 4px 12px rgba(61, 43, 31, 0.25), 0 0 0 0 rgba(255, 255, 255, 0.95);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.1);
+    box-shadow: 0 4px 12px rgba(61, 43, 31, 0.25), 0 0 0 34px rgba(255, 255, 255, 0);
+  }
+}
+
+.zoo-area-label {
+  font-weight: 700;
+  font-size: clamp(0.62rem, 1.4vw, 0.82rem);
+  color: var(--text);
+  line-height: 1.2;
+  background: rgba(253, 246, 227, 0.92);
+  padding: 1px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.zoo-area-icons {
+  font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+}
+
+.zoo-area-box.locked {
+  opacity: 0.55;
+  filter: grayscale(0.6) brightness(0.85);
+  cursor: not-allowed;
+  animation: none;
+}
+
+.zoo-area-lock-icon {
+  font-size: 1.5rem;
+}
+
+.zoo-area-condition {
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  background: rgba(253, 246, 227, 0.92);
+  padding: 0 6px;
+  border-radius: 8px;
+}
+
+/* ── ステージ解放演出（マップ帰還後） ───────────────────── */
+
+/* 背景を暗くするベール（#screen-zoo-map 内に重ねる） */
+.zoo-unlock-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: rgba(61, 43, 31, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.zoo-unlock-overlay.visible { opacity: 1; }
+
+.zoo-unlock-caption {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #FFF6E0;
+  font-size: clamp(1.2rem, 4.5vw, 2.2rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.35);
+  white-space: nowrap;
+  animation: unlock-caption-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes unlock-caption-pop {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.5) translateY(-14px); }
+  60%  { opacity: 1; transform: translateX(-50%) scale(1.12) translateY(0); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+}
+
+/* 対象ホットスポットを画面中央へズーム（--ux/--uy は JS が算出） */
+.zoo-area-box.zoo-unlock-zoom {
+  z-index: 60;
+  animation: none !important;
+  transform: translate(-50%, -50%) translate(var(--ux, 0), var(--uy, 0)) scale(2.4);
+  transition: transform 0.62s cubic-bezier(0.34, 1.4, 0.5, 1), filter 0.5s ease;
+}
+
+/* 錠前が外れて色づいた瞬間の輝きリング */
+.zoo-area-box.unlocked-reveal::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(255, 236, 150, 0.9);
+  animation: unlock-burst 0.85s ease-out;
+  pointer-events: none;
+}
+
+@keyframes unlock-burst {
+  from { box-shadow: 0 0 0 0   rgba(255, 236, 150, 0.9); }
+  to   { box-shadow: 0 0 0 62px rgba(255, 236, 150, 0);  }
+}
+
+/* 錠前がポロッと外れて落ちる */
+.zoo-area-lock-icon.lock-break {
+  animation: lock-break 0.5s ease-in forwards;
+}
+
+@keyframes lock-break {
+  0%   { transform: rotate(0) translateY(0);      opacity: 1; }
+  35%  { transform: rotate(-18deg) translateY(-4px); }
+  100% { transform: rotate(30deg) translateY(40px); opacity: 0; }
+}
+
+/* 中央から元の位置へ戻る */
+.zoo-area-box.zoo-unlock-returning {
+  z-index: 60;
+  animation: none !important;
+  transform: translate(-50%, -50%) scale(1);
+  transition: transform 0.55s cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+/* ══════════════════════════════════════════════════════
+   エリア開始前の演出画面
+══════════════════════════════════════════════════════ */
+#screen-area-intro {
+  flex-direction: column;
+  gap: 1.2rem;
+  background: url('assets/background/map.jpg') center / cover no-repeat var(--zoo-map-green);
+  cursor: pointer;
+}
+
+/* マップを見せたまま暗めのベールを掛けてステージ名を際立たせる */
+#screen-area-intro::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(61, 43, 31, 0.38);
+}
+
+/* ステージ選択（マップ）に戻るボタン: 左上 */
+.area-intro-back-btn {
+  position: absolute;
+  top: 1.2rem;
+  left: 1.2rem;
+  z-index: 2;
+  padding: 8px 20px;
+  font-size: 0.85rem;
+  background: rgba(253, 246, 227, 0.9);
+  cursor: pointer;
+}
+
+.area-intro-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  background: rgba(253, 246, 227, 0.92);
+  padding: 2.2rem 3.4rem;
+  border-radius: 22px;
+  box-shadow: 0 8px 24px rgba(61, 43, 31, 0.35), 0 0 0 5px rgba(255, 255, 255, 0.55);
+  animation: area-intro-bounce-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.area-intro-eyebrow {
+  letter-spacing: 0.5em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.area-intro-name {
+  font-size: clamp(2.4rem, 9vw, 5rem);
+  font-weight: 900;
+  color: #E8472A;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.15);
+  animation: area-intro-bounce-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes area-intro-bounce-in {
+  0%   { opacity: 0; transform: scale(0.5) rotate(-4deg); }
+  60%  { opacity: 1; transform: scale(1.12) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+.area-intro-hint {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  animation: area-intro-hint-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes area-intro-hint-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
 }
 
 /* NEW BEST! ラベル（右上） */
@@ -476,9 +890,46 @@ section[id^="screen-"] {
 
 #screen-result {
   /* display は game.js が制御 */
+  position: relative;
+}
+
+/* パーフェクトコンボ演出（全問80点以上のときのみ表示） */
+#canvas-combo-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+#perfect-combo-banner {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  font-size: clamp(1.6rem, 6vw, 3.2rem);
+  font-weight: 900;
+  color: #E8472A;
+  letter-spacing: 0.08em;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.15);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#perfect-combo-banner.combo-pop {
+  animation: combo-pop-anim 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes combo-pop-anim {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.4) rotate(-6deg); }
+  60%  { opacity: 1; transform: translateX(-50%) scale(1.15) rotate(2deg); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1)    rotate(0deg); }
 }
 
 .result-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -491,13 +942,102 @@ section[id^="screen-"] {
   max-width: 90vw;
   max-height: 92vh;
   overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: 4px 6px 20px rgba(61, 43, 31, 0.12), 0 0 0 6px rgba(139, 94, 60, 0.06);
 }
 
-.result-heading {
-  font-size: 0.9rem;
-  letter-spacing: 0.4em;
+/* お題（エリア）名: 画面中央上部 */
+.result-area-name {
+  font-size: clamp(1.3rem, 4vw, 2rem);
+  font-weight: 900;
   color: #E8472A;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+/* プレイ中のベストショット: 画面中央 */
+.result-screenshots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.9rem;
+}
+
+.result-shot {
+  width: clamp(90px, 22vw, 150px);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: #FFFFFF;
+  padding: 6px 6px 16px;
+  border: 1px solid rgba(139, 94, 60, 0.25);
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(61, 43, 31, 0.25);
+  transform: rotate(var(--tilt, -3deg));
+}
+
+.result-shot:nth-child(odd)  { --tilt: -4deg; }
+.result-shot:nth-child(even) { --tilt: 3deg; }
+
+.result-shot-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 1.6rem;
+}
+
+/* ドラムロールで点数が出てくる演出（中央→1秒後に下部へドッキング） */
+.result-score-reveal {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  z-index: 8;
+  pointer-events: none;
+  transition:
+    top 0.6s cubic-bezier(0.34, 1.15, 0.4, 1),
+    transform 0.6s cubic-bezier(0.34, 1.15, 0.4, 1),
+    opacity 0.5s ease;
+}
+
+.result-score-rolling {
+  display: inline-block;
+  font-size: clamp(3.2rem, 13vw, 6.5rem);
+  font-weight: 900;
+  color: #E8472A;
+  text-shadow: 3px 4px 0 rgba(61, 43, 31, 0.15);
+}
+
+.result-score-rolling.score-bang {
+  animation: score-bang-anim 0.4s cubic-bezier(0.34, 1.7, 0.5, 1);
+}
+
+@keyframes score-bang-anim {
+  0%   { transform: scale(0.6); }
+  55%  { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+.result-score-reveal.flying-down {
+  top: 100%;
+  transform: translate(-50%, -50%) scale(0.32);
+  opacity: 0;
+}
+
+/* 平均点・内訳・星・順位: 画面下部（ドラムロール終了1秒後にフェードイン） */
+.result-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.result-summary.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .result-total-wrap {
@@ -572,7 +1112,7 @@ section[id^="screen-"] {
 
 #screen-art {
   position: relative;
-  background: var(--bg);
+  background: var(--zoo-bg-gradient);
 }
 
 #canvas-art-full {
@@ -718,6 +1258,74 @@ section[id^="screen-"] {
 
 #tutorial-play-hint.visible {
   opacity: 1;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   飼育員ウィジェット（動物園マップ・エリア開始・結果画面）
+══════════════════════════════════════════════════════ */
+.zookeeper-widget {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.7rem;
+  max-width: min(420px, 82vw);
+  pointer-events: none;
+}
+
+.zookeeper-widget.zookeeper-pop {
+  animation: zookeeper-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes zookeeper-pop-in {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.zookeeper-img {
+  height: clamp(72px, 16vw, 128px);
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(2px 4px 8px rgba(61, 43, 31, 0.25));
+}
+
+.zookeeper-bubble {
+  position: relative;
+  background: #FFF9F0;
+  border: 2px solid rgba(139, 94, 60, 0.3);
+  border-radius: 16px;
+  padding: 0.7rem 1rem;
+  margin-bottom: 0.6rem;
+  box-shadow: 3px 4px 10px rgba(61, 43, 31, 0.15);
+}
+
+.zookeeper-bubble::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  bottom: 18px;
+  border: 7px solid transparent;
+  border-right-color: rgba(139, 94, 60, 0.3);
+}
+
+.zookeeper-bubble::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  bottom: 20px;
+  border: 6px solid transparent;
+  border-right-color: #FFF9F0;
+}
+
+.zookeeper-message {
+  font-size: clamp(0.78rem, 2.2vw, 0.92rem);
+  color: #3D2B1F;
+  line-height: 1.6;
+  white-space: pre-line;
 }
 
 
@@ -904,4 +1512,78 @@ section[id^="screen-"] {
   letter-spacing: 0.04em;
   z-index: 10;
   white-space: nowrap;
+}
+
+
+/* ══════════════════════════════════════════════════════
+   エフェクト確認（デバッグ）画面  #screen-effect-debug
+══════════════════════════════════════════════════════ */
+
+#screen-effect-debug {
+  /* エフェクトが白系なので暗い背景で見やすくする */
+  background: #1c2733;
+}
+
+#canvas-effect-debug {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* プレイ画面のオーバーレイと同じ左右反転を再現する */
+  transform: scaleX(-1);
+}
+
+.fx-debug-back-btn {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 2;
+  border-color: rgba(255, 255, 255, 0.85);
+  color: #fff;
+}
+
+.fx-debug-panel {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  text-align: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 16px;
+  padding: 0.8rem 1.4rem;
+}
+
+.fx-debug-help {
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.fx-debug-btns {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.fx-debug-pose-btn {
+  background: transparent;
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 20px;
+  padding: 8px 20px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.fx-debug-pose-btn:hover {
+  border-color: #fff;
+}
+
+.fx-debug-pose-btn.active {
+  background: #E8472A;
+  border-color: #E8472A;
 }

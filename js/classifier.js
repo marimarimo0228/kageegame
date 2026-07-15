@@ -340,7 +340,13 @@ async function getFinalScore(videoCanvas, landmarks, currentPose, refData = null
     );
   } else {
     // TM なし（チュートリアル用）: 骨格 60% + シルエット 40%
-    finalScore = Math.round(skeletonScore * 0.6 + silhouetteScore * 0.4);
+    let raw = skeletonScore * 0.6 + silhouetteScore * 0.4;
+    if (currentPose === 'choki') {
+      // チュートリアルのチョキは初心者向けに難易度を優しめにする
+      // （0→0, 100→100 は維持しつつ中間スコアを底上げするカーブ）
+      raw = Math.pow(raw / 100, 0.4) * 100;
+    }
+    finalScore = Math.round(raw);
     console.log(
       `[classifier] getFinalScore(noTM) | pose=${currentPose}` +
       ` | skeleton=${skeletonScore}(+mirror)` +

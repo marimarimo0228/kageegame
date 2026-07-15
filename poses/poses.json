@@ -2,6 +2,7 @@
   {
     "name": "choki", "label": "チョキ", "image": "choki.png", "answerImage": "choki-a.png",
     "bboxConstraints": { "minWidthRatio": 0.30, "minHeightRatio": 0.50 },
+    "tutorialOnly": true,
     "samples": []
   },
   {

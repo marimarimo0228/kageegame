@@ -31,7 +31,13 @@
 
     <!-- 中央: タイトル + スタートボタン -->
     <div class="title-center">
-      <img class="game-title" src="assets/タイトル1.png" alt="影絵採点ゲーム">
+      <h1 class="game-title" aria-label="影絵ZOO">
+        <span class="title-letter tl-1">影</span>
+        <span class="title-letter tl-2">絵</span>
+        <span class="title-letter tl-3 title-letter-en">Z</span>
+        <span class="title-letter tl-4 title-letter-en">O</span>
+        <span class="title-letter tl-5 title-letter-en">O</span>
+      </h1>
       <p class="title-sub">手のかたちで影をつくろう！</p>
       <button id="btn-start" class="btn-primary"
               onclick="window.GameModule.startGame()">
@@ -40,6 +46,10 @@
       <button class="btn-secondary"
               onclick="window.GameModule.showCalibrateScreen()">
         骨格調整
+      </button>
+      <button class="btn-secondary"
+              onclick="window.GameModule.showEffectDebug()">
+        エフェクト確認
       </button>
     </div>
 
@@ -59,6 +69,54 @@
       <ol id="ranking-list"></ol>
     </div>
 
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       #screen-effect-debug  エフェクト確認（デバッグ）画面
+  ══════════════════════════════════════════════ -->
+  <section id="screen-effect-debug" style="display:none">
+    <canvas id="canvas-effect-debug" aria-hidden="true"></canvas>
+    <button class="btn-secondary fx-debug-back-btn"
+            onclick="window.GameModule.exitEffectDebug()">← タイトルへ</button>
+    <div class="fx-debug-panel">
+      <p class="fx-debug-help">キー <b>1</b> / <b>2</b> / <b>3</b> またはボタンでエフェクトを再生（Esc で戻る）</p>
+      <div class="fx-debug-btns">
+        <button class="fx-debug-pose-btn" data-pose="dog"
+                onclick="window.GameModule.effectDebugSelect('dog')">1: イヌ</button>
+        <button class="fx-debug-pose-btn" data-pose="bird"
+                onclick="window.GameModule.effectDebugSelect('bird')">2: ハト</button>
+        <button class="fx-debug-pose-btn" data-pose="crab"
+                onclick="window.GameModule.effectDebugSelect('crab')">3: カニ</button>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       #screen-zoo-map  個人動物園マップ画面（スタート後のトップ画面）
+  ══════════════════════════════════════════════ -->
+  <section id="screen-zoo-map" style="display:none">
+    <div id="zoo-map-ground" class="zoo-map-ground" aria-label="個人動物園マップ">
+      <div id="zoo-map-image" class="zoo-map-image">
+        <div id="zoo-points-display" aria-live="polite">0 pt</div>
+      </div>
+    </div>
+    <button class="btn-secondary zoo-back-title-btn"
+            onclick="window.GameModule.goToTitle()">← タイトルへ</button>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       #screen-area-intro  エリア選択後・カウントダウン前の演出画面
+  ══════════════════════════════════════════════ -->
+  <section id="screen-area-intro" style="display:none">
+    <button id="area-intro-back-btn" class="btn-secondary area-intro-back-btn">← ステージ選択に戻る</button>
+    <div class="area-intro-content">
+      <p class="area-intro-eyebrow">STAGE</p>
+      <h2 id="area-intro-name" class="area-intro-name">--</h2>
+      <p class="area-intro-hint">何かキーを押す、または画面をタップしてスタート！</p>
+    </div>
   </section>
 
 
@@ -126,6 +184,9 @@
     <!-- 右上: NEW BEST! ラベル -->
     <div id="new-best-label" style="display:none" aria-live="polite">NEW BEST!</div>
 
+    <!-- 残り時間わずかの緊張感演出（赤いビネット） -->
+    <div id="timer-vignette" aria-hidden="true"></div>
+
   </section>
 
 
@@ -190,30 +251,43 @@
        #screen-result  結果画面
   ══════════════════════════════════════════════ -->
   <section id="screen-result" style="display:none">
+
+    <!-- パーフェクトコンボ演出（全問80点以上の場合のみ表示） -->
+    <canvas id="canvas-combo-fx" aria-hidden="true"></canvas>
+    <div id="perfect-combo-banner" style="display:none" aria-hidden="true">PERFECT COMBO!</div>
+
     <div class="result-card">
 
-      <h2 class="result-heading">RESULT</h2>
+      <p id="result-area-name" class="result-area-name">--</p>
 
-      <div class="result-total-wrap">
-        <span class="result-total-label">平均スコア</span>
-        <span id="result-total" class="result-total-value">0</span>
-        <span class="result-total-unit">点</span>
+      <div id="result-screenshots" class="result-screenshots"></div>
+
+      <div id="result-score-reveal" class="result-score-reveal">
+        <span id="result-score-rolling" class="result-score-rolling">0</span>
       </div>
 
-      <div id="result-stars" class="result-stars">
-        <span class="star" id="star-1">★</span>
-        <span class="star" id="star-2">★</span>
-        <span class="star" id="star-3">★</span>
+      <div id="result-summary" class="result-summary">
+        <div class="result-total-wrap">
+          <span class="result-total-label">平均スコア</span>
+          <span id="result-total" class="result-total-value">0</span>
+          <span class="result-total-unit">点</span>
+        </div>
+
+        <div id="result-stars" class="result-stars">
+          <span class="star" id="star-1">★</span>
+          <span class="star" id="star-2">★</span>
+          <span class="star" id="star-3">★</span>
+        </div>
+
+        <ol id="result-scores" class="result-scores-list"></ol>
+
+        <p id="result-rank" class="result-rank">-- 位</p>
       </div>
-
-      <ol id="result-scores" class="result-scores-list"></ol>
-
-      <p id="result-rank" class="result-rank">-- 位</p>
 
       <div class="result-buttons">
         <button id="btn-retry" class="btn-primary"
-                onclick="window.GameModule.startGame()">
-          もう一度
+                onclick="window.GameModule.backToZooMap()">
+          マップに戻る
         </button>
         <button class="btn-secondary"
                 onclick="window.GameModule.showArtCanvas()">
@@ -261,6 +335,14 @@
   <!-- インゲームヒント（チュートリアル中に画面上に表示される吹き出し） -->
   <div id="tutorial-play-hint" aria-live="polite"></div>
 
+  <!-- 飼育員ウィジェット（動物園マップ・エリア開始・結果画面に登場） -->
+  <div id="zookeeper-widget" class="zookeeper-widget" style="display:none" aria-hidden="true">
+    <img id="zookeeper-img" class="zookeeper-img" src="assets/tutorial-character(挨拶).png" alt="飼育員">
+    <div class="zookeeper-bubble">
+      <p id="zookeeper-message" class="zookeeper-message"></p>
+    </div>
+  </div>
+
 
   <!-- ══════════════════════════════════════════════
        JS: 依存モジュール → ゲーム本体 の順に読み込む
@@ -272,6 +354,8 @@
   <script src="js/artCanvas.js"></script>
   <script src="js/tutorial.js"></script>
   <script src="js/effects.js"></script>
+  <script src="js/zoo.js"></script>
+  <script src="js/zooUI.js"></script>
   <script src="js/game.js"></script>
   <script src="js/ranking.js"></script>
 
@@ -315,6 +399,9 @@
 
         const artFull = document.getElementById('canvas-art-full');
         if (artFull) { artFull.width = window.innerWidth; artFull.height = window.innerHeight; }
+
+        const comboFx = document.getElementById('canvas-combo-fx');
+        if (comboFx) { comboFx.width = window.innerWidth; comboFx.height = window.innerHeight; }
 
         const cam = document.getElementById('canvas-camera');
         if (cam) {

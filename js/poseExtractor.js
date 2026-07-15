@@ -137,4 +137,36 @@ function calcScore7(landmarks, refVec) {
   return Math.round((simScore * 0.5 + distScore * 0.5) * 100);
 }
 
-window.PoseExtractorModule = { KEY_INDICES, extractFromImage, extractKeyVec, calcScore7 };
+/**
+ * KEY_INDICES の12点それぞれについて、お手本ベクトルとの近さを 0〜100 で返す。
+ * calcScore7 の距離スコアと同じスケール（距離0→100点、距離0.5以上→0点）を使う。
+ * リアルタイムの部位別一致度表示（お題キャンバスのドット色分け）に使用する。
+ */
+function calcPointScores(landmarks, refVec) {
+  if (!refVec) return null;
+  const playerVec = extractKeyVec(landmarks);
+  const scores = [];
+  for (let i = 0; i < KEY_INDICES.length; i++) {
+    const dx = playerVec[i * 2]     - refVec[i * 2];
+    const dy = playerVec[i * 2 + 1] - refVec[i * 2 + 1];
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    scores.push(Math.max(0, 1 - dist / 0.5) * 100);
+  }
+  return scores;
+}
+
+/**
+ * 通常向き・ミラー反転の両方で calcPointScores を計算し、
+ * 全体スコア（calcScore7）が高い方の部位別スコアを返す。
+ */
+function calcPointScoresBest(landmarks, refVec) {
+  if (!refVec) return null;
+  const flipped = refVec.map((v, i) => (i % 2 === 0 ? -v : v));
+  const useFlip = calcScore7(landmarks, flipped) > calcScore7(landmarks, refVec);
+  return calcPointScores(landmarks, useFlip ? flipped : refVec);
+}
+
+window.PoseExtractorModule = {
+  KEY_INDICES, extractFromImage, extractKeyVec, calcScore7,
+  calcPointScores, calcPointScoresBest,
+};
