@@ -101,7 +101,15 @@ function hidePlayHint() {
 
 // ─── チュートリアル本体 ──────────────────────────────────
 
-async function runTutorial() {
+/**
+ * @param {*} [session]     呼び出し元（game.js）のセッショントークン。省略時はチェックしない。
+ * @param {(token:*)=>boolean} [isCurrent]  session が依然として最新かを判定する関数（game.js から渡される）。
+ *        別のトップレベルフロー（デバッグジャンプ等）に割り込まれた場合、各ステップの後で
+ *        判定して途中で打ち切る。これにより古いチュートリアルの吹き出しが後から出現するのを防ぐ。
+ */
+async function runTutorial(session, isCurrent) {
+  const isStale = () => typeof isCurrent === 'function' && !isCurrent(session);
+
   // ステップ1: ウェルカム（デフォルト画像）
   await showTutorialOverlay(
     '影絵採点ゲームへようこそ！',
@@ -109,6 +117,7 @@ async function runTutorial() {
     '次へ'
     // imageUrl はデフォルト（TutorialCharacter.imageUrl）を使用
   );
+  if (isStale()) return;
 
   // ステップ2: あそびかた説明（異なる画像URL）
   await showTutorialOverlay(
@@ -117,9 +126,11 @@ async function runTutorial() {
     'やってみる！',
     'assets/tutorial-character(説明).png'  // ← ここを変更してステップ2の画像を指定
   );
+  if (isStale()) return;
 
   // チュートリアル1問プレイ（GameModuleに処理を委譲）
-  await window.GameModule.startTutorial();
+  await window.GameModule.startTutorial(session);
+  if (isStale()) return;
 
   // ステップ3: チュートリアル完了（別画像URL）
   await showTutorialOverlay(

@@ -639,10 +639,17 @@ section[id^="screen-"] {
   animation: zoo-spot-breathe 2.6s ease-in-out infinite;
 }
 
-.zoo-area-box[data-pose="dog"]   { --zoo-spot-color: rgba(185, 123, 74, 0.6); }
-.zoo-area-box[data-pose="bird"]  { --zoo-spot-color: rgba(63, 168, 220, 0.6); }
-.zoo-area-box[data-pose="crab"]  { --zoo-spot-color: rgba(232, 87, 74, 0.6); }
-.zoo-area-box[data-pose="mixed"] { --zoo-spot-color: rgba(232, 160, 32, 0.6); }
+.zoo-area-box[data-pose="dog"]    { --zoo-spot-color: rgba(185, 123, 74, 0.6); }
+.zoo-area-box[data-pose="bird"]   { --zoo-spot-color: rgba(63, 168, 220, 0.6); }
+.zoo-area-box[data-pose="crab"]   { --zoo-spot-color: rgba(232, 87, 74, 0.6); }
+.zoo-area-box[data-pose="swan"]   { --zoo-spot-color: rgba(120, 170, 200, 0.6); }
+.zoo-area-box[data-pose="owl"]    { --zoo-spot-color: rgba(150, 110, 70, 0.6); }
+.zoo-area-box[data-pose="snake"]  { --zoo-spot-color: rgba(90, 160, 90, 0.6); }
+.zoo-area-box[data-pose="frog"]   { --zoo-spot-color: rgba(80, 180, 110, 0.6); }
+.zoo-area-box[data-pose="cat"]    { --zoo-spot-color: rgba(230, 150, 90, 0.6); }
+.zoo-area-box[data-pose="fox"]    { --zoo-spot-color: rgba(220, 120, 60, 0.6); }
+.zoo-area-box[data-pose="rabbit"] { --zoo-spot-color: rgba(220, 180, 200, 0.6); }
+.zoo-area-box[data-pose="mixed"]  { --zoo-spot-color: rgba(232, 160, 32, 0.6); }
 
 @keyframes zoo-spot-breathe {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
@@ -735,6 +742,21 @@ section[id^="screen-"] {
   border-radius: 8px;
 }
 
+/* 解放条件は満たしているが中身が未実装のステージ（コンテンツ準備中） */
+.zoo-area-box.coming-soon {
+  filter: saturate(0.7) brightness(0.97);
+}
+
+.zoo-area-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #7A5A1E;
+  background: rgba(255, 214, 120, 0.95);
+  padding: 1px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
 /* ── ステージ解放演出（マップ帰還後） ───────────────────── */
 
 /* 背景を暗くするベール（#screen-zoo-map 内に重ねる） */
@@ -810,6 +832,99 @@ section[id^="screen-"] {
   animation: none !important;
   transform: translate(-50%, -50%) scale(1);
   transition: transform 0.55s cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+/* ══════════════════════════════════════════════════════
+   ステージ位置調整画面
+══════════════════════════════════════════════════════ */
+#screen-position-editor {
+  padding: 0;
+  overflow: hidden;
+  background: var(--zoo-map-green);
+}
+
+.poseditor-ground { cursor: default; }
+
+/* ドラッグ可能なステージアイコン（本番の zoo-area-box より簡素な見た目） */
+.poseditor-box {
+  position: absolute;
+  width: clamp(64px, 9vw, 100px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.6) 62%, rgba(255,255,255,0) 100%);
+  border: 3px dashed rgba(232, 71, 42, 0.75);
+  box-shadow: 0 4px 12px rgba(61, 43, 31, 0.25);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.poseditor-box:active { cursor: grabbing; }
+
+.poseditor-label {
+  font-weight: 700;
+  font-size: clamp(0.58rem, 1.3vw, 0.76rem);
+  color: var(--text);
+  line-height: 1.15;
+  text-align: center;
+  padding: 0 4px;
+}
+
+.poseditor-coord {
+  font-size: clamp(0.5rem, 1.1vw, 0.64rem);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 下部: 出力パネル */
+.poseditor-panel {
+  position: absolute;
+  left: 1.2rem;
+  right: 1.2rem;
+  bottom: 1.2rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: rgba(253, 246, 227, 0.94);
+  border-radius: 14px;
+  padding: 0.8rem 1rem;
+  box-shadow: 0 4px 16px rgba(61, 43, 31, 0.25);
+}
+
+.poseditor-help {
+  font-size: 0.8rem;
+  color: var(--text);
+  margin: 0;
+}
+
+.poseditor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+#poseditor-status {
+  font-size: 0.78rem;
+  color: var(--accent-green);
+}
+
+.poseditor-output {
+  width: 100%;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(61, 43, 31, 0.2);
+  border-radius: 8px;
+  padding: 0.5rem;
+  resize: vertical;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1614,4 +1729,81 @@ section[id^="screen-"] {
 .fx-debug-pose-btn.active {
   background: #E8472A;
   border-color: #E8472A;
+}
+
+/* ══════════════════════════════════════════════════════
+   デバッグパネル（常時右上表示・全画面共通）
+   通常プレイには影響しない、開発・検証用のショートカット。
+══════════════════════════════════════════════════════ */
+.debug-panel {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: inherit;
+}
+
+.debug-toggle-btn {
+  background: rgba(20, 16, 12, 0.82);
+  color: #FFD24A;
+  border: 1px solid rgba(255, 210, 74, 0.6);
+  border-radius: 16px;
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.debug-toggle-btn:hover { background: rgba(20, 16, 12, 0.95); }
+
+.debug-panel-body {
+  margin-top: 6px;
+  width: 220px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: rgba(20, 16, 12, 0.92);
+  border: 1px solid rgba(255, 210, 74, 0.4);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.debug-panel-title {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.66rem;
+  font-weight: 700;
+  margin: 0 0 2px 2px;
+  letter-spacing: 0.04em;
+}
+
+.debug-stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.debug-stage-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FDF6E3;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.74rem;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debug-stage-btn:hover {
+  background: rgba(255, 210, 74, 0.2);
+  border-color: rgba(255, 210, 74, 0.5);
 }

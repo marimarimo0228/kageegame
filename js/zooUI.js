@@ -2,7 +2,11 @@
 // areas.json の x, y はマップ画像（assets/background/map.jpg）に対する百分率（0〜100）。
 
 // エリアに入れる動物種のアイコン（絵文字で代用）
-const ZOO_POSE_ICON = { dog: '🐕', bird: '🕊️', crab: '🦀' };
+const ZOO_POSE_ICON = {
+  dog: '🐕', bird: '🕊️', crab: '🦀',
+  swan: '🦢', owl: '🦉', snake: '🐍', frog: '🐸',
+  cat: '🐱', fox: '🦊', rabbit: '🐰',
+};
 
 function _areaIcons(area) {
   return (area.poses ?? []).map((p) => ZOO_POSE_ICON[p] ?? '').join(' ');
@@ -52,8 +56,17 @@ function _buildAreaBox(area, currentStars, opts = {}) {
   box.appendChild(label);
 
   if (!showLocked) {
-    // ステージ上部にそのエリアの獲得星（最終スコアで変動・上限3つ）を表示
-    box.appendChild(_buildAreaStars(area.stars ?? 0));
+    if (area.comingSoon) {
+      // 未実装ステージ: 星の代わりに「準備中」バッジを表示する
+      box.classList.add('coming-soon');
+      const badge = document.createElement('div');
+      badge.className   = 'zoo-area-badge';
+      badge.textContent = '準備中';
+      box.appendChild(badge);
+    } else {
+      // ステージ上部にそのエリアの獲得星（最終スコアで変動・上限3つ）を表示
+      box.appendChild(_buildAreaStars(area.stars ?? 0));
+    }
 
     const icons = document.createElement('div');
     icons.className   = 'zoo-area-icons';

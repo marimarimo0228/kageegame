@@ -51,6 +51,10 @@
               onclick="window.GameModule.showEffectDebug()">
         エフェクト確認
       </button>
+      <button class="btn-secondary"
+              onclick="window.GameModule.showPositionEditor()">
+        ステージ位置調整
+      </button>
     </div>
 
     <!-- 右: チュートリアルキャラクター -->
@@ -104,6 +108,30 @@
     </div>
     <button class="btn-secondary zoo-back-title-btn"
             onclick="window.GameModule.goToTitle()">← タイトルへ</button>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════
+       #screen-position-editor  ステージ位置調整画面
+       マップ画像上でステージアイコンをドラッグし、座標(%)を出力する。
+       ブラウザからファイルへ直接書き込むことはできないため、
+       出力されたJSONをClaude Codeに伝えると areas.json に反映される。
+  ══════════════════════════════════════════════ -->
+  <section id="screen-position-editor" style="display:none">
+    <div class="zoo-map-ground poseditor-ground">
+      <div id="poseditor-map-image" class="zoo-map-image"></div>
+    </div>
+    <button class="btn-secondary zoo-back-title-btn"
+            onclick="window.GameModule.exitPositionEditor()">← タイトルへ</button>
+
+    <div class="poseditor-panel">
+      <p class="poseditor-help">ステージのアイコンをドラッグして位置を調整できます。調整が終わったら「座標を出力」を押し、表示されたJSONをコピーしてClaude Codeに伝えてください。</p>
+      <div class="poseditor-actions">
+        <button class="btn-primary" onclick="window.GameModule.posEditorOutput()">座標を出力</button>
+        <span id="poseditor-status" aria-live="polite"></span>
+      </div>
+      <textarea id="poseditor-output" class="poseditor-output" readonly style="display:none" rows="8"></textarea>
+    </div>
   </section>
 
 
@@ -340,6 +368,20 @@
     <img id="zookeeper-img" class="zookeeper-img" src="assets/tutorial-character(挨拶).png" alt="飼育員">
     <div class="zookeeper-bubble">
       <p id="zookeeper-message" class="zookeeper-message"></p>
+    </div>
+  </div>
+
+  <!-- デバッグパネル（常時右上表示・全画面共通）。
+       screen-* の外に置かれているため showScreen() の display:none 切替対象にならず、
+       どの画面に遷移しても常に表示され続ける。通常のゲーム進行・セーブデータには影響しない。 -->
+  <div id="debug-panel" class="debug-panel">
+    <button id="debug-toggle-btn" class="debug-toggle-btn"
+            onclick="window.GameModule.toggleDebugPanel()">🛠 DEBUG</button>
+    <div id="debug-panel-body" class="debug-panel-body" style="display:none">
+      <p class="debug-panel-title">ステージジャンプ</p>
+      <button type="button" class="debug-stage-btn"
+              onclick="window.GameModule.debugJumpTutorial()">🎓 チュートリアル</button>
+      <div id="debug-stage-list" class="debug-stage-list"></div>
     </div>
   </div>
 
