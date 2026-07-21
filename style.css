@@ -1313,14 +1313,18 @@ section[id^="screen-"] {
   flex-shrink: 0;
   align-items: flex-end;
   justify-content: center;
-  width: 200px;
+  width: min(24vw, 220px);
   max-height: 420px;
 }
 
 .tut-char-img {
-  max-width: 100%;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 220px;
   max-height: 420px;
   object-fit: contain;
+  object-position: center bottom;
   filter: drop-shadow(2px 4px 8px rgba(61, 43, 31, 0.2));
 }
 
