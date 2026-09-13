@@ -4,7 +4,7 @@
 // エリアに入れる動物種のアイコン（絵文字で代用）
 const ZOO_POSE_ICON = {
   dog: '🐕', bird: '🕊️', crab: '🦀',
-  swan: '🦢', owl: '🦉', snake: '🐍', frog: '🐸',
+  swan: '🦢', owl: '🦉', turtle: '🐢', frog: '🐸',
   cat: '🐱', fox: '🦊', rabbit: '🐰',
 };
 

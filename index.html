@@ -228,16 +228,8 @@
       <div class="calib-header">
         <button class="btn-secondary calib-back-btn"
                 onclick="window.GameModule.exitCalibrateScreen()">← 戻る</button>
-        <div class="calib-tabs">
-          <button class="calib-tab active" data-pose="dog"
-                  onclick="window.GameModule.calibSelectPose('dog')">イヌ</button>
-          <button class="calib-tab" data-pose="bird"
-                  onclick="window.GameModule.calibSelectPose('bird')">ハト</button>
-          <button class="calib-tab" data-pose="crab"
-                  onclick="window.GameModule.calibSelectPose('crab')">カニ</button>
-          <button class="calib-tab" data-pose="choki"
-                  onclick="window.GameModule.calibSelectPose('choki')">チョキ</button>
-        </div>
+        <!-- ポーズタブは poses/poses.json から JS（_calibBuildTabs）が自動生成する -->
+        <div class="calib-tabs"></div>
         <div class="calib-hand-toggle">
           <span class="calib-hand-label">手の数:</span>
           <button class="calib-hand-btn active" data-hands="1"
@@ -268,8 +260,16 @@
                 onclick="window.GameModule.calibSaveDefault()">デフォルト登録</button>
         <button class="btn-secondary"
                 onclick="window.GameModule.calibReset()">リセット</button>
+        <button class="btn-secondary"
+                onclick="window.GameModule.calibExportRefs()">座標を出力</button>
         <span id="calib-status" aria-live="polite"></span>
       </div>
+
+      <!-- 「座標を出力」の結果（登録済み骨格の JSON）。
+           ブラウザからファイルへは書き込めないため、この内容を Claude Code に伝えると
+           game.js の POSE_DEFAULT_REFS に恒久化される。 -->
+      <textarea id="calib-export-output" class="poseditor-output calib-export-output"
+                readonly style="display:none" rows="6"></textarea>
 
     </div>
   </section>

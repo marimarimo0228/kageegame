@@ -1,6 +1,6 @@
 // sw.js — Service Worker（Cache First 戦略）
 
-const CACHE_NAME = 'kagee-v15';
+const CACHE_NAME = 'kagee-v20';
 
 const PRECACHE_URLS = [
   '/',
@@ -24,6 +24,16 @@ const PRECACHE_URLS = [
   '/assets/silhouettes/dog.jpg',
   '/assets/silhouettes/bird.jpg',
   '/assets/silhouettes/crab.jpg',
+  '/assets/silhouettes/dog-a.png',
+  '/assets/silhouettes/bird-a.png',
+  '/assets/silhouettes/crab-a.png',
+  '/assets/silhouettes/swan.png',
+  '/assets/silhouettes/owl.png',
+  '/assets/silhouettes/turtle.png',
+  '/assets/silhouettes/frog.png',
+  '/assets/silhouettes/cat.png',
+  '/assets/silhouettes/fox.png',
+  '/assets/silhouettes/rabbit.png',
   '/assets/background/taitoru.jpg',
   '/assets/background/map.jpg',
 ];

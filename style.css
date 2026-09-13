@@ -644,7 +644,7 @@ section[id^="screen-"] {
 .zoo-area-box[data-pose="crab"]   { --zoo-spot-color: rgba(232, 87, 74, 0.6); }
 .zoo-area-box[data-pose="swan"]   { --zoo-spot-color: rgba(120, 170, 200, 0.6); }
 .zoo-area-box[data-pose="owl"]    { --zoo-spot-color: rgba(150, 110, 70, 0.6); }
-.zoo-area-box[data-pose="snake"]  { --zoo-spot-color: rgba(90, 160, 90, 0.6); }
+.zoo-area-box[data-pose="turtle"] { --zoo-spot-color: rgba(90, 160, 90, 0.6); }
 .zoo-area-box[data-pose="frog"]   { --zoo-spot-color: rgba(80, 180, 110, 0.6); }
 .zoo-area-box[data-pose="cat"]    { --zoo-spot-color: rgba(230, 150, 90, 0.6); }
 .zoo-area-box[data-pose="fox"]    { --zoo-spot-color: rgba(220, 120, 60, 0.6); }
@@ -1513,7 +1513,9 @@ section[id^="screen-"] {
 .calib-tabs {
   display: flex;
   gap: 0.45rem;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  flex-wrap: wrap;       /* ポーズが増えても折り返して収まるように */
+  min-width: 0;
 }
 
 .calib-tab {
@@ -1628,6 +1630,15 @@ section[id^="screen-"] {
   border-top: 1px dashed rgba(139, 94, 60, 0.3);
   background: rgba(139, 94, 60, 0.04);
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* 「座標を出力」の結果欄（フッター直下に表示） */
+.calib-export-output {
+  flex-shrink: 0;
+  width: auto;
+  margin: 0 1.1rem 0.6rem;
+  max-height: 22vh;
 }
 
 .calib-footer .btn-primary,

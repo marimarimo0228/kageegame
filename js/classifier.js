@@ -62,6 +62,21 @@ function isModelLoaded() {
 }
 
 /**
+ * Teachable Machine モデルがそのポーズのクラスを持っているか返す。
+ * モデル未読込の場合は判定できないため false（= TM を使わない）。
+ * @param {string} poseName
+ */
+function hasTMClass(poseName) {
+  if (!model || typeof model.getClassLabels !== 'function') return false;
+  try {
+    const labels = model.getClassLabels().map((l) => LABEL_MAP[l] ?? l);
+    return labels.includes(poseName);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
  * 全クラスの予測確率を返す。確率バー表示などに使用する。
  * @param {HTMLVideoElement} videoEl
  * @returns {Promise<[{className: string, probability: number}]>}
@@ -100,10 +115,18 @@ async function calcScore(videoEl, currentPose) {
 // ── シルエット照合スコア ───────────────────────────────────────────
 
 const ASPECT_RATIO_LIMITS = {
-  bird:  { min: 0.8, max: 1.4 },
-  crab:  { min: 1.0, max: 1.8 },
-  dog:   { min: 0.6, max: 1.2 },
-  choki: { min: 0.4, max: 0.85 },
+  bird:   { min: 0.8,  max: 1.4  },
+  crab:   { min: 1.0,  max: 1.8  },
+  dog:    { min: 0.6,  max: 1.2  },
+  choki:  { min: 0.4,  max: 0.85 },
+  // 新ポーズ（値はテンプレート画像の縦横比 w/h を中心に ±0.3 程度）
+  swan:   { min: 1.3,  max: 2.0  },
+  owl:    { min: 0.8,  max: 1.35 },
+  turtle: { min: 1.5,  max: 2.2  },
+  frog:   { min: 1.4,  max: 2.1  },
+  cat:    { min: 0.85, max: 1.45 },
+  fox:    { min: 0.75, max: 1.3  },
+  rabbit: { min: 0.6,  max: 1.1  },
 };
 
 let silhouetteTemplates = null;
@@ -142,6 +165,10 @@ async function _loadAndBinarize(src) {
       canvas.width  = 128;
       canvas.height = 128;
       const ctx = canvas.getContext('2d');
+      // 透過PNG対策: 透明画素は RGB=0（黒）として読まれシルエットと区別できなくなるため、
+      // 先に白で塗りつぶしてから描画し「白背景に黒いシルエット」として2値化する。
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, 128, 128);
       ctx.drawImage(img, 0, 0, 128, 128);
       const { data } = ctx.getImageData(0, 0, 128, 128);
       const pixels = new Uint8Array(128 * 128);
@@ -156,13 +183,29 @@ async function _loadAndBinarize(src) {
   });
 }
 
-async function loadSilhouetteTemplates() {
-  const entries = [
-    { name: 'bird',  fileA: 'assets/silhouettes/bird.jpg',   fileB: 'assets/silhouettes/bird-a.png'  },
-    { name: 'crab',  fileA: 'assets/silhouettes/crab.jpg',   fileB: 'assets/silhouettes/crab-a.png'  },
-    { name: 'dog',   fileA: 'assets/silhouettes/dog.jpg',    fileB: 'assets/silhouettes/dog-a.png'   },
-    { name: 'choki', fileA: 'assets/silhouettes/choki.png',  fileB: 'assets/silhouettes/choki-a.png' },
-  ];
+/**
+ * 各ポーズのシルエットテンプレート（2値化済み）を読み込む。
+ * poses.json の image（お題）と answerImage（正解シルエット）の2枚を使い、
+ * 採点時は両方と照合して高い方を採用する。
+ * @param {Array<{name:string,image:string,answerImage?:string}>} [poses]
+ *        省略時は poses/poses.json を自身で読み込む。
+ */
+async function loadSilhouetteTemplates(poses) {
+  if (!Array.isArray(poses)) {
+    try {
+      poses = await (await fetch('poses/poses.json')).json();
+    } catch (err) {
+      console.error('[classifier] poses.json の読み込みに失敗しました:', err);
+      poses = [];
+    }
+  }
+  const entries = poses
+    .filter((p) => p && p.name && p.image)
+    .map((p) => ({
+      name:  p.name,
+      fileA: `assets/silhouettes/${p.image}`,
+      fileB: `assets/silhouettes/${p.answerImage ?? p.image}`,
+    }));
   const result = {};
   await Promise.all(
     entries.map(async ({ name, fileA, fileB }) => {
@@ -279,6 +322,10 @@ async function getFinalScore(videoCanvas, landmarks, currentPose, refData = null
     return 0;
   }
 
+  // TM に学習クラスが無いポーズ（シルエットのみの新ポーズ等）は
+  // TM=0 で頭打ちにならないよう、骨格＋シルエットのみの採点へ切り替える。
+  if (useTM && !hasTMClass(currentPose)) useTM = false;
+
   // a. Teachable Machine スコア（useTM=false 時はスキップ）
   let teachableMachineScore = 0;
   if (useTM) {
@@ -363,7 +410,7 @@ function getLastPredictions() {
 }
 
 window.ClassifierModule = {
-  loadModel, isModelLoaded, calcScore, getPredictions,
+  loadModel, isModelLoaded, hasTMClass, calcScore, getPredictions,
   loadSilhouetteTemplates, getBoundingBox, extractAndBinarize,
   calcSilhouetteScore, getFinalScore, getLastPredictions,
 };

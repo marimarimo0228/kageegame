@@ -19,5 +19,35 @@
     "name": "crab", "label": "カニ",  "image": "crab.jpg", "answerImage": "crab-a.png",
     "bboxConstraints": { "minWidthRatio": 0.65, "minHeightRatio": 0.40 },
     "samples": []
+  },
+
+  {
+    "_comment": "以下7種はシルエット画像のみ（実写なし）。骨格は「骨格調整」画面で手動登録する（manualSkeleton）。TM未学習のため採点は骨格＋シルエットのみ。",
+    "name": "swan",   "label": "ハクチョウ", "image": "swan.png",   "answerImage": "swan.png",
+    "manualSkeleton": true, "samples": []
+  },
+  {
+    "name": "owl",    "label": "フクロウ",   "image": "owl.png",    "answerImage": "owl.png",
+    "manualSkeleton": true, "samples": []
+  },
+  {
+    "name": "turtle", "label": "カメ",       "image": "turtle.png", "answerImage": "turtle.png",
+    "manualSkeleton": true, "samples": []
+  },
+  {
+    "name": "frog",   "label": "カエル",     "image": "frog.png",   "answerImage": "frog.png",
+    "manualSkeleton": true, "samples": []
+  },
+  {
+    "name": "cat",    "label": "ネコ",       "image": "cat.png",    "answerImage": "cat.png",
+    "manualSkeleton": true, "samples": []
+  },
+  {
+    "name": "fox",    "label": "キツネ",     "image": "fox.png",    "answerImage": "fox.png",
+    "manualSkeleton": true, "samples": []
+  },
+  {
+    "name": "rabbit", "label": "ウサギ",     "image": "rabbit.png", "answerImage": "rabbit.png",
+    "manualSkeleton": true, "samples": []
   }
 ]
