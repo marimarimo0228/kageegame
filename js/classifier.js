@@ -1,19 +1,6 @@
-// js/classifier.js — Teachable Machine 3クラス分類
-// クラス: dog | bird | crab
-// モデルファイル: models/model.json, models/metadata.json
-
-// ── ラベルマッピング ───────────────────────────────────────────
-// metadata.json の labels 配列の順番と異なる場合はここを修正する。
-// 例: 学習時に bird → crab → dog の順で作った場合
-//   'Class 1': 'bird', 'Class 2': 'crab', 'Class 3': 'dog'
-//
-// metadata.json を直接書き換えた場合（現在の設定）はこのマップは使われない。
-// モデルが返すクラス名が既に dog/bird/crab であれば LABEL_MAP は不要。 
-const LABEL_MAP = {
-  'Class 1': 'dog',
-  'Class 2': 'bird',
-  'Class 3': 'crab',
-};
+// js/classifier.js — Teachable Machine 10クラス分類対応
+// 対応クラス: bird, owl, cat, turtle, frog, crab, dog, fox, rabbit, swan
+// モデルファイル: models/model.json, models/metadata.json, models/weights.bin
 
 let model    = null;
 let _loading = false;   // 二重ロード防止フラグ
@@ -69,8 +56,8 @@ function isModelLoaded() {
 function hasTMClass(poseName) {
   if (!model || typeof model.getClassLabels !== 'function') return false;
   try {
-    const labels = model.getClassLabels().map((l) => LABEL_MAP[l] ?? l);
-    return labels.includes(poseName);
+    // metadata.json のラベルは既にポーズ名（dog/bird/...）そのものなので変換不要
+    return model.getClassLabels().includes(poseName);
   } catch (_) {
     return false;
   }
@@ -78,7 +65,7 @@ function hasTMClass(poseName) {
 
 /**
  * 全クラスの予測確率を返す。確率バー表示などに使用する。
- * @param {HTMLVideoElement} videoEl
+ * @param {HTMLVideoElement|HTMLCanvasElement} imageEl
  * @returns {Promise<[{className: string, probability: number}]>}
  */
 async function getPredictions(imageEl) {
@@ -89,9 +76,9 @@ async function getPredictions(imageEl) {
   if (!imageEl) return [];
   try {
     const raw = await model.predict(imageEl);
-    // metadata.json に正しいラベルが入っていれば変換は素通りする
+    // metadata.json に英語のクラス名が入っているため、そのまま返す
     return raw.map(p => ({
-      className:   LABEL_MAP[p.className] ?? p.className,
+      className:   p.className,
       probability: p.probability,
     }));
   } catch (err) {
@@ -103,7 +90,7 @@ async function getPredictions(imageEl) {
 /**
  * currentPose クラスの確率を 0〜100 に変換して返す。
  * @param {HTMLVideoElement} videoEl
- * @param {string} currentPose  "dog" | "bird" | "crab"
+ * @param {string} currentPose
  * @returns {Promise<number>}
  */
 async function calcScore(videoEl, currentPose) {
