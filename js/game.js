@@ -1204,6 +1204,7 @@ async function startTutorial(session = null) {
 async function startGame() {
   const mySession = _beginSession();
   console.log('[game] startGame() 開始');
+  window.AnalyticsModule?.trackEvent('game_start');
 
   // モデル未読込でもゲームは即座に開始する（スコアは後から更新される）
   if (window.ClassifierModule && !window.ClassifierModule.isModelLoaded()) {
@@ -1315,6 +1316,7 @@ async function startAreaPlay(area) {
   sessionSnapshots    = [];
   sessionScreenshots  = [];
   lastSessionUnlocks  = [];
+  window.AnalyticsModule?.trackEvent('stage_start', { stage_id: area.id, stage_label: area.label });
 
   if (allPoses.length === 0) await loadPoses();
 
@@ -1378,6 +1380,11 @@ async function startAreaPlay(area) {
     window.ZooModule.recordAreaBestScore(currentArea.id, avg);
     const newlyUnlocked = await window.ZooModule.checkUnlocks();
     if (newlyUnlocked.length) lastSessionUnlocks.push(...newlyUnlocked);
+    window.AnalyticsModule?.trackEvent('stage_complete', {
+      stage_id: currentArea.id,
+      stage_label: currentArea.label,
+      score: avg,
+    });
   }
   if (!_isCurrentSession(mySession)) return;
 

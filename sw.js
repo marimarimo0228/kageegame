@@ -1,6 +1,6 @@
 // sw.js — Service Worker（Cache First 戦略）
 
-const CACHE_NAME = 'kagee-v20';
+const CACHE_NAME = 'kagee-v23';
 
 const PRECACHE_URLS = [
   '/',
@@ -17,6 +17,7 @@ const PRECACHE_URLS = [
   '/js/tutorial.js',
   '/js/zoo.js',
   '/js/zooUI.js',
+  '/js/analytics.js',
   '/assets/hane.png',
   '/assets/sounds/great-dog.mp3',
   '/poses/poses.json',
@@ -70,6 +71,9 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  // Google Analytics 等の外部リクエストは素通りさせる（キャッシュ介入で計測が壊れるのを防ぐ）
+  if (new URL(event.request.url).origin !== self.location.origin) return;
 
   event.respondWith(
     caches.match(event.request).then((cached) => {

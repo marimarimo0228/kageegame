@@ -588,8 +588,8 @@ section[id^="screen-"] {
 /* マップ画像本体。縦横比を保って画面いっぱいに収める（ホットスポットの%基準） */
 .zoo-map-image {
   position: relative;
-  width: min(100vw, calc(100vh * 2304 / 1792));
-  aspect-ratio: 2304 / 1792;
+  width: min(100vw, calc(100vh * 16 / 9));
+  aspect-ratio: 16 / 9;
   background: url('assets/background/map.jpg') center / contain no-repeat;
 }
 
