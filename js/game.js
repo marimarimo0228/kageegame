@@ -1108,6 +1108,7 @@ function goToTitle() {
   _gameAborted = true;   // 実行中の問題ループを次フレームで即座に停止させる
   _invalidateSession();  // 進行中の startGame/startAreaPlay フローを以後無効化する
   showScreen('screen-title');
+  if (window.BgmModule) window.BgmModule.play('title');
 }
 
 // ─── エフェクト確認（デバッグ）画面 ──────────────────────────
@@ -1212,6 +1213,7 @@ async function startGame() {
 
   // チュートリアルを毎回先に実行する
   if (window.TutorialModule) {
+    if (window.BgmModule) window.BgmModule.play('tutorial');
     await window.TutorialModule.runTutorial(mySession, _isCurrentSession);
   }
   if (!_isCurrentSession(mySession)) return; // 途中でデバッグジャンプ等に割り込まれていたら中断
@@ -1235,6 +1237,7 @@ let lastSessionUnlocks = [];   // 直近のプレイセッションで新規解�
  */
 async function showZooMap(opts = {}) {
   showScreen('screen-zoo-map');
+  if (window.BgmModule) window.BgmModule.play('zoomap');
   if (!window.ZooModule || !window.ZooUIModule) return;
 
   const zooData = window.ZooModule.loadZoo();
@@ -1337,6 +1340,11 @@ async function startAreaPlay(area) {
   // 骨格抽出はバックグラウンドで実行（完了を待たずゲーム進行）
   ensureReferenceVecs();
   _ensureDetection();
+
+  // エリアの出題ポーズ（先頭）に応じた動物BGMに切り替える
+  if (window.BgmModule && area.poses && area.poses[0]) {
+    window.BgmModule.play(area.poses[0]);
+  }
 
   // カウントダウン前に飼育場所名を表示し、キー入力/タップを待ってから開始する
   const proceed = await showAreaIntro(area);

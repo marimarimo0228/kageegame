@@ -394,6 +394,7 @@
   <script src="js/poseExtractor.js"></script>
   <script src="js/snapshot.js"></script>
   <script src="js/artCanvas.js"></script>
+  <script src="js/bgm.js"></script>
   <script src="js/tutorial.js"></script>
   <script src="js/effects.js"></script>
   <script src="js/zoo.js"></script>
@@ -412,6 +413,9 @@
 
       // poses.json 読み込み & 参照骨格をバックグラウンドで抽出開始
       await window.GameModule.initGame();
+
+      // タイトル画面のBGMを再生開始
+      if (window.BgmModule) window.BgmModule.play('title');
 
       // タイトル背景に蓄積アートを描画
       const artCanvas = document.getElementById('canvas-art');
